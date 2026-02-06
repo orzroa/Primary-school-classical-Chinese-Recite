@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">古诗词背诵</string>
+    <string name="title_activity_main">古诗词背诵</string>
+    <string name="package_name">com.poem.app</string>
+    <string name="custom_url_scheme">com.poem.app</string>
+</resources>
