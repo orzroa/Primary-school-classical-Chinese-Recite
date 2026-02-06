@@ -7,14 +7,14 @@
       <h4 class="mb-0" style="color: white; font-weight: 800; text-shadow: 0 4px 20px rgba(0,0,0,0.3); letter-spacing: 1px;">{{ grade }}年级诗词</h4>
     </div>
     
-    <div class="row g-3">
+    <div class="row g">
       <div 
         v-for="(poem, index) in poems" 
         :key="poem.id"
         class="col-12"
         :style="{ animation: `fadeInUp 0.6s ease ${index * 0.05}s both` }"
       >
-        <div class="card poem-card" @click="goToPoem(poem.id)" style="padding: 18px 24px;">
+        <div class="card poem-card" @click="goToPoem(poem.id)" style="padding: 14px 20px;">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="card-title mb-1" style="font-weight: 700; color: #2c3e50; letter-spacing: 0.5px;">{{ poem.title }}</h5>

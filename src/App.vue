@@ -29,17 +29,17 @@ body {
 
 .btn-grade {
   width: 100%;
-  height: 95px;
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin-bottom: 14px;
+  height: 75px;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 10px;
   border-radius: 20px;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   border: none;
   position: relative;
   overflow: hidden;
-  letter-spacing: 1px;
+  letter-spacing: 3px;
 }
 
 .btn-grade::before {
@@ -123,7 +123,7 @@ body {
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   border-radius: 16px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   border: none;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
   background: white;
@@ -173,7 +173,7 @@ body {
 
 .card {
   border: none;
-  border-radius: 20px;
+  border-radius: 0 !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(20px);
   background: rgba(255, 255, 255, 0.98);
@@ -187,7 +187,7 @@ body {
 }
 
 .card-header {
-  border-radius: 20px 20px 0 0 !important;
+  border-radius: 0 !important;
   padding: 20px 24px;
   font-weight: 700;
   font-size: 1.15rem;
@@ -204,6 +204,10 @@ body {
   right: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+}
+
+.card-body {
+  border-radius: 0 !important;
 }
 
 .list-group-item {
