@@ -1,3 +1,5 @@
+import { getLocalDateStr, addDays, compareDates } from './dateUtils'
+
 const STORAGE_KEY = 'poem_learning_records'
 
 export const storage = {
@@ -5,19 +7,19 @@ export const storage = {
     const data = localStorage.getItem(STORAGE_KEY)
     return data ? JSON.parse(data) : {}
   },
-  
+
   saveRecords(records) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
   },
-  
+
   getPoemRecord(poemId) {
     const records = this.getRecords()
     return records[poemId] || null
   },
-  
+
   addLearningRecord(poemId) {
     const records = this.getRecords()
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateStr()
     
     if (!records[poemId]) {
       // 初学
@@ -56,14 +58,14 @@ export const storage = {
     allRecords.sort((a, b) => {
       const dateA = a.reviewDates[0] || a.firstLearnDate
       const dateB = b.reviewDates[0] || b.firstLearnDate
-      return new Date(dateB) - new Date(dateA)
+      return compareDates(dateB, dateA)
     })
     
     return allRecords
   },
   
   getTodayRecords() {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateStr()
     const allRecords = this.getAllRecordsSorted()
     
     return allRecords.filter(record => {
@@ -74,28 +76,25 @@ export const storage = {
   getReviewSchedule(poemId) {
     const record = this.getPoemRecord(poemId)
     if (!record) return []
-    
-    const firstLearnDate = new Date(record.firstLearnDate)
+
     const intervals = [1, 4, 8, 15, 30]
     const schedule = []
-    
+
     intervals.forEach(days => {
-      const reviewDate = new Date(firstLearnDate)
-      reviewDate.setDate(reviewDate.getDate() + days)
       schedule.push({
         days,
-        date: reviewDate.toISOString().split('T')[0]
+        date: addDays(record.firstLearnDate, days)
       })
     })
-    
+
     return schedule
   },
   
   isReviewedToday(poemId) {
     const record = this.getPoemRecord(poemId)
     if (!record) return false
-    
-    const today = new Date().toISOString().split('T')[0]
+
+    const today = getLocalDateStr()
     return record.firstLearnDate === today || record.reviewDates.includes(today)
   }
 }

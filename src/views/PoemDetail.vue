@@ -1,21 +1,23 @@
 <template>
   <div class="container py-4">
     <div class="d-flex align-items-center mb-4">
-      <button class="btn me-2" style="background: rgba(255,255,255,0.25); color: white; border: none; backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.1);" @click="goBack">
+      <button class="btn me-3" style="background: #2c3e50; color: #fff6e5; border: none; box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15); font-family: 'ZCOOL XiaoWei', serif;" @click="goBack">
         ← 返回
       </button>
-      <h4 class="mb-0" style="color: white; font-weight: 800; text-shadow: 0 4px 20px rgba(0,0,0,0.3); letter-spacing: 1px;">{{ poem.title }}</h4>
+      <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">{{ poem.title }}</h4>
     </div>
     
     <div class="card mb-3" style="animation: fadeInUp 0.6s ease;">
       <div class="card-body" style="padding: 28px;">
-        <h5 class="mb-4" style="color: #667eea; font-weight: 700; letter-spacing: 1px; font-size: 1.1rem;">{{ poem.author }}</h5>
+        <h5 class="mb-4 text-center" style="color: #785448; font-weight: 700; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 1px; font-size: 1.25rem;">{{ poem.author }}</h5>
         <div v-if="!hideContent" class="poem-content">
-          {{ poem.content }}
+          <div v-for="(line, index) in formattedContent" :key="index" class="poem-line">
+            {{ line }}
+          </div>
         </div>
-        <div v-else class="text-center py-5" style="color: #999;">
+        <div v-else class="text-center py-5" style="color: #8c7e6c;">
           <div class="display-4 mb-3" style="animation: pulse 2s infinite;">🙈</div>
-          <p style="font-size: 1.15rem; font-weight: 500;">原文已隐藏，请尝试背诵</p>
+          <p style="font-size: 1.15rem; font-weight: 500; font-family: 'Noto Serif SC', serif;">原文已隐藏，请尝试背诵</p>
         </div>
       </div>
     </div>
@@ -26,7 +28,7 @@
           class="btn w-100"
           :disabled="isTodayLearned"
           @click="markAsLearned"
-          :style="isTodayLearned ? 'background: #e0e0e0; color: #999;' : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);'"
+          :style="isTodayLearned ? 'background: #e5dfd3; color: #8c7e6c;' : 'background: #274a78; color: #fff6e5; box-shadow: 0 4px 15px rgba(39, 74, 120, 0.25);'"
         >
           {{ isTodayLearned ? '今日已学 ✓' : '标记学习' }}
         </button>
@@ -35,7 +37,7 @@
         <button 
           class="btn w-100"
           @click="toggleHideContent"
-          style="background: rgba(102, 126, 234, 0.12); color: #667eea; border: 2px solid #667eea; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);"
+          style="background: transparent; color: #2c3e50; border: 2px solid #2c3e50; box-shadow: 0 4px 12px rgba(44, 62, 80, 0.08);"
         >
           {{ hideContent ? '显示原文' : '隐藏原文' }}
         </button>
@@ -43,8 +45,8 @@
     </div>
     
     <div class="card mb-3" style="animation: fadeInUp 0.6s ease 0.2s both;">
-      <div class="card-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
-        <h5 class="mb-0">📚 过去的学习过程</h5>
+      <div class="card-header" style="background: #274a78; color: #fff6e5;">
+        <h5 class="mb-0"><span class="me-2">📚</span> 过去的学习过程</h5>
       </div>
       <div class="card-body">
         <div v-if="!record" class="text-muted text-center py-3">
@@ -59,7 +61,7 @@
             <div class="mb-2">
               <span class="badge bg-info">复习</span>
             </div>
-            <div v-for="(date, index) in record.reviewDates" :key="index" class="ms-4">
+            <div v-for="(date, index) in record.reviewDates" :key="index" class="ms-4 my-1">
               复习于{{ formatDate(date) }}
             </div>
           </div>
@@ -68,8 +70,8 @@
     </div>
     
     <div class="card" style="animation: fadeInUp 0.6s ease 0.3s both;">
-      <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
-        <h5 class="mb-0">📅 将来的复习计划</h5>
+      <div class="card-header" style="background: #4c7d6c; color: #fff6e5;">
+        <h5 class="mb-0"><span class="me-2">📅</span> 将来的复习计划</h5>
       </div>
       <div class="card-body">
         <div v-if="!record" class="text-muted text-center py-3">
@@ -101,6 +103,7 @@
 <script>
 import { poems } from '../data/poems'
 import { storage } from '../utils/storage'
+import { getLocalDateStr, formatDateReadable, isToday, isPast } from '../utils/dateUtils'
 
 export default {
   name: 'PoemDetail',
@@ -112,6 +115,18 @@ export default {
       hideContent: false,
       reviewSchedule: [],
       isTodayLearned: false
+    }
+  },
+  computed: {
+    formattedContent() {
+      if (!this.poem || !this.poem.content) return [];
+      const lines = this.poem.content.split('\n');
+      const result = [];
+      lines.forEach(line => {
+        const parts = line.split(/(?<=[，。？！；])/g).filter(p => p.trim());
+        result.push(...parts);
+      });
+      return result;
     }
   },
   mounted() {
@@ -135,8 +150,7 @@ export default {
       this.reviewSchedule = storage.getReviewSchedule(this.id)
     },
     goBack() {
-      const grade = parseInt(this.id.split('-')[0])
-      this.$router.push({ name: 'PoemList', params: { grade } })
+      this.$router.back()
     },
     markAsLearned() {
       this.record = storage.addLearningRecord(this.id)
@@ -147,30 +161,21 @@ export default {
       this.hideContent = !this.hideContent
     },
     formatDate(dateStr) {
-      const date = new Date(dateStr)
-      return `${date.getMonth() + 1}月${date.getDate()}日`
+      return formatDateReadable(dateStr)
     },
     getReviewStatus(date) {
-      const today = new Date().toISOString().split('T')[0]
-      const targetDate = new Date(date)
-      const todayDate = new Date(today)
-      
-      if (date === today) {
+      if (isToday(date)) {
         return '今日'
-      } else if (targetDate < todayDate) {
+      } else if (isPast(date)) {
         return '已过'
       } else {
         return '待复习'
       }
     },
     getReviewStatusClass(date) {
-      const today = new Date().toISOString().split('T')[0]
-      const targetDate = new Date(date)
-      const todayDate = new Date(today)
-      
-      if (date === today) {
+      if (isToday(date)) {
         return 'bg-danger'
-      } else if (targetDate < todayDate) {
+      } else if (isPast(date)) {
         return 'bg-secondary'
       } else {
         return 'bg-light text-dark'

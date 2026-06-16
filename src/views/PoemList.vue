@@ -1,20 +1,20 @@
 <template>
   <div class="container py-4">
     <div class="d-flex align-items-center mb-4" style="animation: fadeInDown 0.6s ease;">
-      <button class="btn me-2" style="background: rgba(255,255,255,0.25); color: white; border: none; backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.1);" @click="goBack">
+      <button class="btn me-3" style="background: #2c3e50; color: #fff6e5; border: none; box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15); font-family: 'ZCOOL XiaoWei', serif;" @click="goBack">
         ← 返回
       </button>
-      <h4 class="mb-0" style="color: white; font-weight: 800; text-shadow: 0 4px 20px rgba(0,0,0,0.3); letter-spacing: 1px;">{{ grade }}年级诗词</h4>
+      <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">{{ grade }}年级诗词</h4>
     </div>
     
-    <div class="row g">
+    <div class="row g-2">
       <div 
         v-for="(poem, index) in poems" 
         :key="poem.id"
         class="col-12"
         :style="{ animation: `fadeInUp 0.6s ease ${index * 0.05}s both` }"
       >
-        <div class="card poem-card" @click="goToPoem(poem.id)" style="padding: 14px 20px;">
+        <div class="card poem-card" @click="goToPoem(poem.id)" style="padding: 10px 16px;">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="card-title mb-1" style="font-weight: 700; color: #2c3e50; letter-spacing: 0.5px;">{{ poem.title }}</h5>
@@ -44,7 +44,7 @@ export default {
   },
   methods: {
     goBack() {
-      this.$router.push({ name: 'Home' })
+      this.$router.back()
     },
     goToPoem(poemId) {
       this.$router.push({ name: 'PoemDetail', params: { id: poemId } })
