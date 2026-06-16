@@ -38,7 +38,7 @@
                 <div class="text-muted small">{{ getPoemAuthor(item.poemId) }}</div>
               </div>
               <span class="badge bg-danger">
-                {{ item.days }}天后 · 待复习
+                今天 · 待复习
               </span>
             </div>
           </div>
