@@ -96,17 +96,17 @@
           暂无复习计划
         </div>
         <div v-else>
-          <div 
-            v-for="(group, date) in groupedReviewPlan" 
-            :key="date"
+          <div
+            v-for="group in groupedReviewPlan"
+            :key="group.date"
             class="mb-3"
           >
             <div class="bg-light px-3 py-2 border-bottom">
-              <strong>{{ date }}</strong>
+              <strong>{{ group.date }}</strong>
             </div>
             <div class="list-group list-group-flush">
-              <div 
-                v-for="item in group" 
+              <div
+                v-for="item in group.items"
                 :key="item.poemId"
                 class="list-group-item poem-card"
                 @click="goToPoem(item.poemId)"
@@ -197,7 +197,12 @@ export default {
         })
       })
 
-      return grouped
+      // 按日期排序，返回有序数组
+      const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b))
+      return sortedDates.map(date => ({
+        date,
+        items: grouped[date]
+      }))
     },
     groupRecordsByDate() {
       const grouped = {}

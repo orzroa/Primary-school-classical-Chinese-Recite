@@ -122,10 +122,26 @@ export default {
       if (!this.poem || !this.poem.content) return [];
       const lines = this.poem.content.split('\n');
       const result = [];
+      let buffer = '';
       lines.forEach(line => {
-        const parts = line.split(/(?<=[，。？！；])/g).filter(p => p.trim());
-        result.push(...parts);
+        const trimmed = line.trim();
+        if (trimmed) {
+          if (buffer) {
+            buffer += trimmed;
+          } else {
+            buffer = trimmed;
+          }
+          // 如果行以句号/问号/叹号/分号结尾，认为是一句的结束
+          if (/[。？！；]$/.test(trimmed)) {
+            result.push(buffer);
+            buffer = '';
+          }
+        }
       });
+      // 把剩余的 buffer 也加进去
+      if (buffer) {
+        result.push(buffer);
+      }
       return result;
     }
   },
