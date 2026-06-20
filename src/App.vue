@@ -183,7 +183,8 @@ body {
 .poem-line {
   margin-bottom: 12px;
   letter-spacing: 3px;
-  white-space: nowrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .poem-line:last-child {
