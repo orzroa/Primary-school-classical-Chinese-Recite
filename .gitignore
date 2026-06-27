@@ -64,4 +64,4 @@ coverage/
 # Misc
 *.pem
 *.key
-*.cert
+*.cert*.apk
