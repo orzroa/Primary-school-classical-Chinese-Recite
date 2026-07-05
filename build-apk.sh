@@ -65,7 +65,7 @@ cd android
 
 if [ "$MODE" = "release" ]; then
     # 检查签名配置（关键！没有签名会导致 packageinfo null）
-    GRADLE_FILE="android/app/build.gradle"
+    GRADLE_FILE="app/build.gradle"
     if ! grep -q "signingConfig" "$GRADLE_FILE"; then
         echo "❌ Release 模式缺少签名配置！请在 $GRADLE_FILE 的 buildTypes.release 中添加 signingConfig signingConfigs.debug"
         exit 1
@@ -80,7 +80,7 @@ if [ "$MODE" = "release" ]; then
     echo "🔨 构建 Release APK..."
     ./gradlew assembleRelease
 
-    APK_PATH="app/build/outputs/apk/release/app-release.apk"
+    APK_PATH="app/build/outputs/apk/release/poem-release.apk"
     APK_NAME="poem-release"
 else
     # 构建 Debug APK
@@ -94,14 +94,6 @@ fi
 cd ..
 
 if [ -f "android/$APK_PATH" ]; then
-    # 复制到 larkode 发送队列（自动发送给飞书）
-    LARKODE_DIR="$HOME/.larkode/queue/pending"
-    if [ -d "$LARKODE_DIR" ]; then
-        TIMESTAMP=$(date +%Y%m%d%H%M%S)
-        cp "android/$APK_PATH" "$LARKODE_DIR/${APK_NAME}_${TIMESTAMP}.apk"
-        echo "📬 已放入飞书发送队列: ${APK_NAME}_${TIMESTAMP}.apk"
-    fi
-
     echo ""
     echo "========================================="
     echo "🎉 $MODE APK 构建成功！"
