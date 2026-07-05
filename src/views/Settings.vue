@@ -53,6 +53,7 @@
 <script>
 import { storage } from '../utils/storage'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 
 export default {
   name: 'Settings',
@@ -90,12 +91,24 @@ export default {
         const result = await Filesystem.writeFile({
           path: filename,
           data: content,
-          directory: Directory.Documents,
+          directory: Directory.Cache,
           encoding: Encoding.UTF8
         })
 
-        this.showMessage(`导出成功！文件已保存到"文档"目录：${filename}`, 'alert-success')
+        const uri = result.uri
+
+        await Share.share({
+          title: '分享备份文件',
+          text: '古诗词背诵进度备份',
+          url: uri,
+          dialogTitle: '分享备份文件'
+        })
+
+        this.showMessage('分享成功！', 'alert-success')
       } catch (err) {
+        if (err.message && err.message.includes('Share canceled')) {
+          return
+        }
         console.error('Export error:', err)
         this.showMessage('导出失败：' + err.message, 'alert-danger')
       }
