@@ -52,6 +52,7 @@
 
 <script>
 import { storage } from '../utils/storage'
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 
 export default {
   name: 'Settings',
@@ -73,26 +74,31 @@ export default {
       const records = storage.getAllRecordsSorted()
       this.learnedCount = records.length
     },
-    exportData() {
+    async exportData() {
       const records = storage.getRecords()
-      const exportData = {
+      const exportObj = {
         version: 1,
         exportDate: new Date().toISOString(),
         records: records
       }
 
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
       const date = new Date().toISOString().split('T')[0]
-      a.href = url
-      a.download = `古诗词背诵备份_${date}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const filename = `古诗词背诵备份_${date}.json`
+      const content = JSON.stringify(exportObj, null, 2)
 
-      this.showMessage('导出成功！', 'alert-success')
+      try {
+        const result = await Filesystem.writeFile({
+          path: filename,
+          data: content,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8
+        })
+
+        this.showMessage(`导出成功！文件已保存到"文档"目录：${filename}`, 'alert-success')
+      } catch (err) {
+        console.error('Export error:', err)
+        this.showMessage('导出失败：' + err.message, 'alert-danger')
+      }
     },
     triggerImport() {
       this.$refs.fileInput.click()

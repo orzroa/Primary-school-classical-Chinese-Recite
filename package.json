@@ -17,6 +17,7 @@
     "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^8.0.2",
     "@capacitor/core": "^8.0.2",
+    "@capacitor/filesystem": "^8.1.2",
     "@vitejs/plugin-vue": "^6.0.4",
     "bootstrap": "^5.3.8",
     "vite": "^7.3.1",
