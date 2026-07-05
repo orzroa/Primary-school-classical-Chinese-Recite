@@ -3,6 +3,9 @@
     <div class="text-center mb-5" style="animation: fadeInDown 0.8s ease;">
       <h1 class="mb-1" style="color: #2c3e50; font-size: 2.5rem; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 4px;">古诗词背诵</h1>
       <p style="color: #785448; font-family: 'Long Cang', cursive; font-size: 1.35rem; margin-top: 5px;">温故而知新，可以为师矣</p>
+      <button class="btn btn-sm mt-2" style="background: #f6f3eb; color: #785448; border: 1px solid #785448; font-size: 0.85rem;" @click="goToSettings">
+        ⚙️ 设置
+      </button>
     </div>
     
     <div class="row g-3 mb-5">
@@ -225,6 +228,9 @@ export default {
     },
     goToGrade(grade) {
       this.$router.push({ name: 'PoemList', params: { grade } })
+    },
+    goToSettings() {
+      this.$router.push({ name: 'Settings' })
     },
     goToPoem(poemId) {
       this.$router.push({ name: 'PoemDetail', params: { id: poemId } })
