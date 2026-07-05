@@ -66,3 +66,6 @@ coverage/
 *.key
 *.cert
 *.apk
+
+# Large binary files
+data/*.pdf
