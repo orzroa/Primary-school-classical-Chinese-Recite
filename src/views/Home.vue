@@ -6,13 +6,13 @@
     </div>
     
     <div class="row g-3 mb-5">
-      <div v-for="grade in 6" :key="grade" class="col-4">
-        <button 
+      <div v-for="grade in 8" :key="grade" class="col-4">
+        <button
           class="btn btn-grade"
           :class="'btn-grade-' + grade"
           @click="goToGrade(grade)"
         >
-          {{ grade }}年级
+          {{ getGradeName(grade) }}
         </button>
       </div>
     </div>
@@ -149,6 +149,11 @@ export default {
     this.loadRecords()
   },
   methods: {
+    getGradeName(grade) {
+      if (grade === 7) return '附加一'
+      if (grade === 8) return '附加二'
+      return grade + '年级'
+    },
     loadRecords() {
       this.allRecords = storage.getAllRecordsSorted()
       this.groupedRecords = this.groupRecordsByDate()

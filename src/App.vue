@@ -145,6 +145,18 @@ body {
   text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+.btn-grade-7 {
+  background: linear-gradient(135deg, #2e6b8a 0%, #1f4f66 100%);
+  color: #fff6e5 !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.btn-grade-8 {
+  background: linear-gradient(135deg, #8a5a2e 0%, #66431f 100%);
+  color: #fff6e5 !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 .poem-card {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;

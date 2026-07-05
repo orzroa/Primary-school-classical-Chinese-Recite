@@ -4,7 +4,7 @@
       <button class="btn me-3" style="background: #2c3e50; color: #fff6e5; border: none; box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15); font-family: 'ZCOOL XiaoWei', serif;" @click="goBack">
         ← 返回
       </button>
-      <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">{{ grade }}年级诗词</h4>
+      <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">{{ getGradeName(grade) }}诗词</h4>
     </div>
     
     <div class="row g-2">
@@ -43,6 +43,12 @@ export default {
     }
   },
   methods: {
+    getGradeName(grade) {
+      const g = parseInt(grade)
+      if (g === 7) return '附加一'
+      if (g === 8) return '附加二'
+      return g + '年级'
+    },
     goBack() {
       this.$router.back()
     },
