@@ -10,8 +10,9 @@
             v-for="p in persons"
             :key="p.id"
             class="btn btn-sm person-chip"
-            :class="{ active: p.id === currentPerson.id }"
-            @click="switchPerson(p.id)"
+            :class="{ active: p.id === currentPersonId }"
+            :aria-pressed="p.id === currentPersonId"
+            @click.stop="switchPerson(p.id)"
           >
             {{ p.name }}
           </button>
@@ -22,40 +23,20 @@
       </div>
     </div>
 
-    <div class="row g-3 mb-4">
-      <div v-for="grade in 8" :key="grade" class="col-4">
-        <button
-          class="btn btn-grade"
-          :class="'btn-grade-' + grade"
-          @click="goToGrade(grade)"
-        >
-          {{ getGradeName(grade) }}
-        </button>
-      </div>
-    </div>
-
-    <div class="text-center mb-4">
-      <button
-        class="btn"
-        style="background: #522c5e; color: #fff6e5; border: none; box-shadow: 0 4px 15px rgba(82, 44, 94, 0.2); font-family: 'ZCOOL XiaoWei', serif; font-size: 1.15rem; padding: 12px 36px; letter-spacing: 2px;"
-        @click="goToQuiz"
-      >
-        📝 测验
-      </button>
-    </div>
-
     <!-- 今日待复习 -->
     <div class="card">
-      <div
+      <button
+        type="button"
         class="card-header collapsible-header"
         style="background: #c8392f; color: #fff6e5;"
+        :aria-expanded="!collapsed.today"
         @click="toggleCollapse('today')"
       >
         <h5 class="mb-0 d-flex justify-content-between align-items-center">
-          <span><span class="me-2">🎯</span> 今日待复习</span>
+          <span><span class="me-2">🎯</span> 今日待复习 <span class="header-count">{{ todayPending.length }}</span></span>
           <span class="collapse-icon">{{ collapsed.today ? '▼' : '▲' }}</span>
         </h5>
-      </div>
+      </button>
       <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.today }">
         <div v-if="todayPending.length === 0" class="text-center py-4 text-muted">
           今天没有待复习任务，休息一下吧 ✨
@@ -81,18 +62,42 @@
       </div>
     </div>
 
+    <div class="row g-3 mb-4">
+      <div v-for="grade in 8" :key="grade" class="col-4">
+        <button
+          class="btn btn-grade"
+          :class="'btn-grade-' + grade"
+          @click="goToGrade(grade)"
+        >
+          {{ getGradeName(grade) }}
+        </button>
+      </div>
+    </div>
+
+    <div class="text-center mb-4">
+      <button
+        class="btn"
+        style="background: #522c5e; color: #fff6e5; border: none; box-shadow: 0 4px 15px rgba(82, 44, 94, 0.2); font-family: 'ZCOOL XiaoWei', serif; font-size: 1.15rem; padding: 12px 36px; letter-spacing: 2px;"
+        @click="goToQuiz"
+      >
+        📝 随机测验
+      </button>
+    </div>
+
     <!-- 学习记录（过去和今天的复习计划） -->
     <div class="card mt-3">
-      <div
+      <button
+        type="button"
         class="card-header collapsible-header"
         style="background: #274a78; color: #fff6e5;"
+        :aria-expanded="!collapsed.history"
         @click="toggleCollapse('history')"
       >
         <h5 class="mb-0 d-flex justify-content-between align-items-center">
           <span><span class="me-2">📝</span> 学习记录（过去）</span>
           <span class="collapse-icon">{{ collapsed.history ? '▼' : '▲' }}</span>
         </h5>
-      </div>
+      </button>
       <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.history }">
         <div v-if="Object.keys(groupedPastHistory).length === 0" class="text-center py-4 text-muted">
           暂无学习记录
@@ -110,7 +115,7 @@
             <div class="list-group list-group-flush">
               <div
                 v-for="item in group"
-                :key="item.poemId + '-' + item.days"
+                :key="item.poemId + '-' + (item.days || 'initial')"
                 class="list-group-item poem-card"
                 @click="goToPoem(item.poemId)"
               >
@@ -132,16 +137,18 @@
 
     <!-- 将来的复习计划 -->
     <div class="card mt-3">
-      <div
+      <button
+        type="button"
         class="card-header collapsible-header"
         style="background: #4c7d6c; color: #fff6e5;"
+        :aria-expanded="!collapsed.future"
         @click="toggleCollapse('future')"
       >
         <h5 class="mb-0 d-flex justify-content-between align-items-center">
           <span><span class="me-2">📅</span> 将来的复习计划</span>
           <span class="collapse-icon">{{ collapsed.future ? '▼' : '▲' }}</span>
         </h5>
-      </div>
+      </button>
       <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.future }">
         <div v-if="futureReviewPlan.length === 0" class="text-center py-4 text-muted">
           暂无复习计划
@@ -202,12 +209,14 @@ export default {
         future: true
       },
       persons: [],
-      currentPerson: null
+      currentPerson: null,
+      currentPersonId: ''
     }
   },
   created() {
     this.persons = storage.getPersons()
     this.currentPerson = storage.getCurrentPerson()
+    this.currentPersonId = this.currentPerson.id
 
     // 从 localStorage 读取折叠状态
     try {
@@ -252,31 +261,37 @@ export default {
       this.futureReviewPlan = this.getFutureReviewPlan()
     },
     switchPerson(personId) {
-      if (storage.setCurrentPerson(personId)) {
-        // 同步 persons 列表（防止后台新增）
-        this.persons = storage.getPersons()
+      if (personId === this.currentPersonId) return
+      const person = this.persons.find(item => item.id === personId)
+      if (!person) return
+
+      // 先更新原始响应式 id，保证移动端第一次点击立即得到视觉反馈。
+      this.currentPersonId = personId
+      this.currentPerson = person
+      if (!storage.setCurrentPerson(personId)) {
         this.currentPerson = storage.getCurrentPerson()
-        this.loadRecords()
+        this.currentPersonId = this.currentPerson.id
       }
     },
     onPersonChanged(person) {
       this.persons = storage.getPersons()
       this.currentPerson = person || storage.getCurrentPerson()
+      this.currentPersonId = this.currentPerson.id
       this.loadRecords()
     },
     onRecordsChanged() {
       this.loadRecords()
     },
-    // 按日期分组过去的复习计划（计划日期 < 今天，不包括今天）
+    // 按实际发生日期分组学习历史，不把“已经过期但未完成”误当成历史。
     groupPastHistory() {
       const today = getLocalDateStr()
       const history = storage.getAllReviewHistory()
       const grouped = {}
 
       history.forEach(item => {
-        // 只显示计划日期 < 今天的内容（不包括今天）
-        if (compareDates(item.plannedDate, today) < 0) {
-          const date = item.plannedDate
+        if (item.status !== 'pending') {
+          const date = item.actualDate || item.plannedDate
+          if (compareDates(date, today) >= 0) return
           if (!grouped[date]) {
             grouped[date] = []
           }
@@ -284,7 +299,19 @@ export default {
         }
       })
 
-      return grouped
+      storage.getAllRecordsSorted().forEach(record => {
+        if (compareDates(record.firstLearnDate, today) >= 0) return
+        if (!grouped[record.firstLearnDate]) grouped[record.firstLearnDate] = []
+        grouped[record.firstLearnDate].push({
+          poemId: record.poemId,
+          status: 'initial',
+          actualDate: record.firstLearnDate
+        })
+      })
+
+      return Object.fromEntries(
+        Object.entries(grouped).sort(([dateA], [dateB]) => compareDates(dateB, dateA))
+      )
     },
     // 获取未来复习计划（pending状态且计划日期 > 今天）
     getFutureReviewPlan() {
@@ -345,6 +372,10 @@ export default {
           return 'bg-warning'    // 橙色：补复习 / 延期复习
         case 'pending':
           return 'bg-secondary'  // 灰色：未复习
+        case 'initial':
+          return 'bg-info'
+        case 'retry':
+          return 'bg-warning'
         default:
           return 'bg-secondary'
       }
@@ -362,6 +393,10 @@ export default {
           return `第${item.days}天 · 补复习`
         case 'pending':
           return `第${item.days}天 · 未复习`
+        case 'initial':
+          return '初学'
+        case 'retry':
+          return `第${item.days}天 · 有点生，${item.intervalDays}天后重试`
         default:
           return `第${item.days}天`
       }
@@ -372,6 +407,10 @@ export default {
 
 <style scoped>
 .collapsible-header {
+  display: block;
+  width: 100%;
+  border: 0;
+  text-align: left;
   cursor: pointer;
   user-select: none;
 }
@@ -395,6 +434,19 @@ export default {
   max-height: 0;
 }
 
+.header-count {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  margin-left: 5px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  font-family: sans-serif;
+  font-size: 0.78rem;
+}
+
 .person-switcher {
   display: flex;
   align-items: center;
@@ -411,14 +463,17 @@ export default {
   color: #785448;
   border: 1px solid transparent;
   border-radius: 16px;
-  padding: 4px 12px;
+  min-height: 40px;
+  padding: 8px 14px;
   font-size: 0.85rem;
   font-weight: 600;
   transition: all 0.2s ease;
 }
 
-.person-chip:hover {
-  background: rgba(120, 84, 72, 0.08);
+@media (hover: hover) {
+  .person-chip:hover {
+    background: rgba(120, 84, 72, 0.08);
+  }
 }
 
 .person-chip.active {

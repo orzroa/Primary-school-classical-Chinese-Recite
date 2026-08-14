@@ -26,7 +26,7 @@
 
 ### 环境要求
 
-- Node.js 16+
+- Node.js 24（项目固定使用 24.11.1）
 - Java 21
 - Android SDK
 

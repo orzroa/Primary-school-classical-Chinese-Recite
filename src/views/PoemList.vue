@@ -35,6 +35,7 @@
 <script>
 import { poems } from '../data/poems'
 import { storage } from '../utils/storage'
+import { formatDateReadable, getLocalDateStr } from '../utils/dateUtils'
 import { eventBus, PERSON_CHANGED, RECORDS_CHANGED } from '../utils/eventBus'
 
 export default {
@@ -76,6 +77,8 @@ export default {
       void this.refreshKey
       const record = storage.getPoemRecord(poemId)
       if (!record) return 'bg-secondary'
+      if (storage.isMastered(record)) return 'bg-success'
+      if (storage.needsReviewToday(poemId)) return 'bg-danger'
       if (storage.isReviewedToday(poemId)) return 'bg-success'
       return 'bg-primary'
     },
@@ -83,8 +86,13 @@ export default {
       void this.refreshKey
       const record = storage.getPoemRecord(poemId)
       if (!record) return '未学'
-      if (storage.isReviewedToday(poemId)) return '已学'
-      return '需复习'
+      if (storage.isMastered(record)) return '已掌握'
+      if (record.firstLearnDate === getLocalDateStr()) return '今日已学'
+      if (storage.isReviewedToday(poemId)) return '今日已复习'
+      if (storage.needsReviewToday(poemId)) return '今日待复习'
+
+      const next = storage.getNextPendingReview(poemId)
+      return next ? `${formatDateReadable(next.plannedDate)}复习` : '计划完成'
     }
   }
 }
