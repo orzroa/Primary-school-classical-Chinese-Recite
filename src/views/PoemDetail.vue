@@ -52,7 +52,7 @@
           >
             <div style="font-size: 1.4rem; font-weight: 800;">🌟</div>
             <div style="font-size: 0.95rem; font-weight: 700;">非常熟</div>
-            <div style="font-size: 0.7rem; opacity: 0.9;">终止复习</div>
+            <div class="rating-effect">结束本轮</div>
           </button>
         </div>
         <div class="col-4">
@@ -63,7 +63,7 @@
           >
             <div style="font-size: 1.4rem; font-weight: 800;">👍</div>
             <div style="font-size: 0.95rem; font-weight: 700;">正常</div>
-            <div style="font-size: 0.7rem; opacity: 0.9;">按计划走</div>
+            <div class="rating-effect">保持计划</div>
           </button>
         </div>
         <div class="col-4">
@@ -74,36 +74,22 @@
           >
             <div style="font-size: 1.4rem; font-weight: 800;">🤔</div>
             <div style="font-size: 0.95rem; font-weight: 700;">有点生</div>
-            <div style="font-size: 0.7rem; opacity: 0.9;">延期复习</div>
+            <div class="rating-effect">明天再复习</div>
           </button>
         </div>
       </div>
 
-      <!-- 已复习 / 已掌握 / 今日已学 - 三选项禁用+显示状态 -->
-      <div v-else class="row g-2">
-        <div class="col-12 mb-2">
-          <div class="text-center" style="font-size: 0.95rem; color: #4c7d6c; font-weight: 700;">
-            {{ buttonText }}
-          </div>
+      <!-- 非复习日只显示有用的状态，不占用空间展示禁用按钮 -->
+      <div v-else class="review-status-card">
+        <div class="review-status-title">{{ buttonText }}</div>
+        <div v-if="nextReview" class="review-status-next">
+          下次复习：{{ formatDate(nextReview.plannedDate) }}
         </div>
-        <div class="col-4">
-          <button class="btn w-100 rating-btn" disabled style="background: #e5dfd3; color: #8c7e6c; padding: 14px 6px;">
-            <div style="font-size: 1.4rem; font-weight: 800;">🌟</div>
-            <div style="font-size: 0.95rem; font-weight: 700;">非常熟</div>
-          </button>
-        </div>
-        <div class="col-4">
-          <button class="btn w-100 rating-btn" disabled style="background: #e5dfd3; color: #8c7e6c; padding: 14px 6px;">
-            <div style="font-size: 1.4rem; font-weight: 800;">👍</div>
-            <div style="font-size: 0.95rem; font-weight: 700;">正常</div>
-          </button>
-        </div>
-        <div class="col-4">
-          <button class="btn w-100 rating-btn" disabled style="background: #e5dfd3; color: #8c7e6c; padding: 14px 6px;">
-            <div style="font-size: 1.4rem; font-weight: 800;">🤔</div>
-            <div style="font-size: 0.95rem; font-weight: 700;">有点生</div>
-          </button>
-        </div>
+      </div>
+
+      <div v-if="feedback" class="review-feedback mt-3" role="status">
+        <span>{{ feedback }}</span>
+        <button v-if="lastRecordSnapshot" class="btn btn-sm undo-btn" @click="undoLastRating">撤销</button>
       </div>
     </div>
 
@@ -178,7 +164,7 @@
 <script>
 import { poems } from '../data/poems'
 import { storage } from '../utils/storage'
-import { getLocalDateStr, formatDateReadable, isToday, isPast, compareDates, addDays } from '../utils/dateUtils'
+import { getLocalDateStr, formatDateReadable, isToday, isPast, compareDates } from '../utils/dateUtils'
 import { eventBus, PERSON_CHANGED, RECORDS_CHANGED } from '../utils/eventBus'
 
 export default {
@@ -190,7 +176,10 @@ export default {
       record: null,
       hideContent: false,
       reviewSchedule: [],
-      futureSchedule: []
+      futureSchedule: [],
+      feedback: '',
+      lastRecordSnapshot: null,
+      feedbackTimer: null
     }
   },
   computed: {
@@ -230,6 +219,12 @@ export default {
 
       return '复习完成 ✓'
     },
+    nextReview() {
+      if (!this.record || storage.isMastered(this.record)) return null
+      return this.reviewSchedule
+        .filter(item => item.status === 'pending')
+        .sort((a, b) => compareDates(a.plannedDate, b.plannedDate))[0] || null
+    }
   },
   mounted() {
     this.loadData()
@@ -239,6 +234,7 @@ export default {
   beforeUnmount() {
     eventBus.off(PERSON_CHANGED, this.handleRefresh)
     eventBus.off(RECORDS_CHANGED, this.handleRefresh)
+    if (this.feedbackTimer) clearTimeout(this.feedbackTimer)
   },
   methods: {
     handleRefresh() {
@@ -278,11 +274,41 @@ export default {
     },
     markAndRate(rating) {
       // 复习 + 评级：atomic 一步完成
+      this.lastRecordSnapshot = JSON.parse(JSON.stringify(this.record))
       this.record = storage.addLearningRecord(this.id, rating)
       this.reviewSchedule = this.record.reviewSchedule || []
       this.futureSchedule = this.reviewSchedule.filter(
         item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
       )
+      this.showRatingFeedback(rating)
+    },
+    showRatingFeedback(rating) {
+      if (rating === 'mastered') {
+        this.feedback = '已标记为非常熟，本轮复习已结束。'
+      } else if (rating === 'extend') {
+        const next = this.nextReview
+        this.feedback = `已开始新一轮复习，下一次是${next ? this.formatDate(next.plannedDate) : '明天'}。`
+      } else {
+        const next = this.nextReview
+        this.feedback = next
+          ? `已记录，计划保持不变。下一次是${this.formatDate(next.plannedDate)}。`
+          : '已记录，本轮计划已经完成。'
+      }
+
+      if (this.feedbackTimer) clearTimeout(this.feedbackTimer)
+      this.feedbackTimer = setTimeout(() => {
+        this.feedback = ''
+        this.lastRecordSnapshot = null
+      }, 8000)
+    },
+    undoLastRating() {
+      if (!this.lastRecordSnapshot) return
+      const records = storage.getRecords()
+      records[this.id] = this.lastRecordSnapshot
+      storage.saveRecords(records)
+      this.lastRecordSnapshot = null
+      this.feedback = '已撤销刚才的评级。'
+      this.loadData()
     },
     toggleHideContent() {
       this.hideContent = !this.hideContent
@@ -352,5 +378,51 @@ export default {
 
 .rating-btn:not(:disabled):active {
   transform: translateY(0);
+}
+
+.rating-effect {
+  font-size: 0.72rem;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.review-status-card {
+  padding: 16px;
+  text-align: center;
+  border: 1px solid #ded8cc;
+  border-radius: 12px;
+  background: #f8f5ee;
+}
+
+.review-status-title {
+  color: #4c7d6c;
+  font-weight: 700;
+}
+
+.review-status-next {
+  margin-top: 4px;
+  color: #785448;
+  font-size: 0.88rem;
+}
+
+.review-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: #315b4d;
+  background: #e7f1ec;
+  border: 1px solid #b9d2c7;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.undo-btn {
+  flex: none;
+  color: #274a78;
+  border: 1px solid #274a78;
+  background: transparent;
+  padding: 5px 12px;
 }
 </style>

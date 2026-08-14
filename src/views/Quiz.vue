@@ -17,6 +17,9 @@
         <p class="text-muted mb-4" style="font-size: 0.95rem;">
           {{ learnedPoems.length === 0 ? '请先学习一些诗词' : '准备好开始测验了吗？' }}
         </p>
+        <p v-if="learnedPoems.length > 0" class="quiz-note">
+          自评结果会同步到复习计划；“有点生”会从明天开始新一轮复习。
+        </p>
         <button
           v-if="learnedPoems.length > 0"
           class="btn"
@@ -34,7 +37,7 @@
       <div class="card-header" style="background: #522c5e; color: #fff6e5;">
         <h5 class="mb-0 d-flex justify-content-between align-items-center">
           <span>第 {{ currentIndex + 1 }} / {{ quizList.length }} 题</span>
-          <span class="badge" style="background: rgba(255,255,255,0.25);">{{ currentQuestion.type === 'content' ? '问内容' : '问标题' }}</span>
+          <span class="badge" style="background: rgba(255,255,255,0.25);">{{ questionTypeText(currentQuestion.type) }}</span>
         </h5>
       </div>
       <div class="card-body" style="padding: 28px;">
@@ -70,6 +73,9 @@
           <div style="color: #785448; font-size: 0.85rem; margin-bottom: 4px;">第 {{ currentQuestion.poem.order }} 首</div>
           <div style="color: #2c3e50; font-weight: 700; font-size: 1.1rem;">{{ currentQuestion.poem.title }}</div>
           <div class="text-muted">{{ currentQuestion.poem.author }}</div>
+          <div v-if="currentQuestion.type === 'partial'" class="answer-lines mt-3">
+            <div v-for="(line, idx) in currentQuestion.answerLines" :key="idx">{{ line }}</div>
+          </div>
         </div>
 
         <!-- 评级按钮 -->
@@ -81,7 +87,7 @@
               @click="ratePoem('A')"
             >
               <div style="font-size: 1.3rem; font-weight: 800;">A</div>
-              <div style="font-size: 0.75rem;">没问题</div>
+              <div style="font-size: 0.75rem;">非常熟</div>
             </button>
           </div>
           <div class="col-4">
@@ -91,7 +97,7 @@
               @click="ratePoem('B')"
             >
               <div style="font-size: 1.3rem; font-weight: 800;">B</div>
-              <div style="font-size: 0.75rem;">看一眼</div>
+              <div style="font-size: 0.75rem;">正常</div>
             </button>
           </div>
           <div class="col-4">
@@ -101,7 +107,7 @@
               @click="ratePoem('C')"
             >
               <div style="font-size: 1.3rem; font-weight: 800;">C</div>
-              <div style="font-size: 0.75rem;">不太熟</div>
+              <div style="font-size: 0.75rem;">有点生</div>
             </button>
           </div>
         </div>
@@ -117,15 +123,15 @@
         <div class="row g-3 mb-4">
           <div class="col-4 text-center">
             <div style="font-size: 2.2rem; color: #4c7d6c; font-weight: 800;">{{ stats.A }}</div>
-            <div style="color: #4c7d6c; font-size: 0.85rem;">A · 没问题</div>
+            <div style="color: #4c7d6c; font-size: 0.85rem;">A · 非常熟</div>
           </div>
           <div class="col-4 text-center">
             <div style="font-size: 2.2rem; color: #b07a3e; font-weight: 800;">{{ stats.B }}</div>
-            <div style="color: #b07a3e; font-size: 0.85rem;">B · 看一眼</div>
+            <div style="color: #b07a3e; font-size: 0.85rem;">B · 正常</div>
           </div>
           <div class="col-4 text-center">
             <div style="font-size: 2.2rem; color: #c9372e; font-weight: 800;">{{ stats.C }}</div>
-            <div style="color: #c9372e; font-size: 0.85rem;">C · 不太熟</div>
+            <div style="color: #c9372e; font-size: 0.85rem;">C · 有点生</div>
           </div>
         </div>
 
@@ -267,6 +273,7 @@ export default {
           type,
           questionText,
           contentLines: displayLines,
+          answerLines: contentLines,
           hint
         }
       })
@@ -284,8 +291,20 @@ export default {
       }
       return content.split('\n').filter(line => line.trim())
     },
+    questionTypeText(type) {
+      if (type === 'author') return '问作者'
+      if (type === 'partial') return '补诗句'
+      return '问标题'
+    },
     ratePoem(rating) {
       this.stats[rating]++
+
+      const storageRating = {
+        A: 'mastered',
+        B: 'normal',
+        C: 'extend'
+      }[rating]
+      storage.rateFromQuiz(this.currentQuestion.poem.id, storageRating)
 
       if (this.currentIndex < this.quizList.length - 1) {
         this.currentIndex++
@@ -305,5 +324,23 @@ export default {
 
 .poem-line:last-child {
   margin-bottom: 0;
+}
+
+.quiz-note {
+  margin: -8px auto 20px;
+  padding: 10px 12px;
+  max-width: 360px;
+  color: #785448;
+  background: #f8f2df;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.answer-lines {
+  padding-top: 12px;
+  border-top: 1px dashed #b9d2c7;
+  color: #315b4d;
+  font-family: 'Noto Serif SC', serif;
+  line-height: 1.8;
 }
 </style>

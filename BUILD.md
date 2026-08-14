@@ -34,7 +34,7 @@
 ## 开发环境要求
 
 ### 必需软件
-- Node.js 16+
+- Node.js 24（项目固定使用 24.11.1）
 - npm 或 yarn
 - Java 11+ (用于Android构建)
 - Android SDK

@@ -8,7 +8,7 @@
 | Gradle Wrapper | 8.11.1 |
 | AGP (Android Gradle Plugin) | 8.9.1 |
 | Capacitor | 8.0.2 |
-| Node.js | 当前系统版本 |
+| Node.js | 24.11.1 |
 | Vue | 3.5.27 |
 | Vite | 7.3.1 |
 

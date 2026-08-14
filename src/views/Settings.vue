@@ -242,8 +242,17 @@ export default {
         try {
           const data = JSON.parse(e.target.result)
 
-          if (!data.records || typeof data.records !== 'object') {
+          if (!data.records || typeof data.records !== 'object' || Array.isArray(data.records)) {
             throw new Error('无效的备份文件格式')
+          }
+
+          const invalidRecord = Object.values(data.records).some(record =>
+            !record || typeof record !== 'object' || Array.isArray(record) ||
+            typeof record.firstLearnDate !== 'string' ||
+            !Array.isArray(record.reviewDates)
+          )
+          if (invalidRecord) {
+            throw new Error('备份文件中包含无效的学习记录')
           }
 
           if (!confirm(`导入将覆盖「${this.currentPerson.name}」的所有记录，确定要继续吗？`)) {
