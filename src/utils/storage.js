@@ -241,7 +241,19 @@ export const storage = {
       days,
       plannedDate: addDays(firstLearnDate, days),
       status: 'pending',
-      actualDate: null
+      actualDate: null,
+      rating: null
+    }))
+  },
+
+  // 从给定基准日期生成新的复习计划（用于"有点生"延期）
+  initReviewScheduleFrom(baseDate) {
+    return REVIEW_INTERVALS.map(days => ({
+      days,
+      plannedDate: addDays(baseDate, days),
+      status: 'pending',
+      actualDate: null,
+      rating: null
     }))
   },
 
@@ -255,9 +267,19 @@ export const storage = {
     // 学习当天不算复习
     if (record.firstLearnDate === today) return false
 
+    // 如果全部 5 个节点都已 mastered（已掌握），不再需要复习
+    if (this.isMastered(record)) return false
+
     return record.reviewSchedule.some(item =>
       item.status === 'pending' && compareDates(item.plannedDate, today) <= 0
     )
+  },
+
+  // 判断一首诗是否已掌握（所有 5 个节点都已 mastered）
+  isMastered(record) {
+    if (!record || !record.reviewSchedule) return false
+    return record.reviewSchedule.length > 0 &&
+      record.reviewSchedule.every(item => item.status === 'mastered')
   },
 
   // 判断今天是否已经复习过
@@ -275,7 +297,8 @@ export const storage = {
   },
 
   // 添加学习/复习记录
-  addLearningRecord(poemId) {
+  // rating: 'mastered' | 'normal' | 'extend' | null（仅复习时使用；null 表示未评级，稍后由 UI 决定）
+  addLearningRecord(poemId, rating = null) {
     const records = this.getRecords()
     const today = getLocalDateStr()
 
@@ -302,24 +325,98 @@ export const storage = {
       // 添加今日复习记录
       record.reviewDates.unshift(today)
 
-      // 把所有过期的 pending 节点标记为完成
       if (record.reviewSchedule) {
-        record.reviewSchedule.forEach(item => {
-          if (item.status === 'pending' && compareDates(item.plannedDate, today) <= 0) {
-            if (today === item.plannedDate) {
-              item.status = 'on-time'
-            } else {
-              item.status = 'makeup'
-            }
-            item.actualDate = today
+        // 找到当前应当复习的节点（最早的过期 pending）
+        const currentIdx = record.reviewSchedule.findIndex(
+          item => item.status === 'pending' && compareDates(item.plannedDate, today) <= 0
+        )
+
+        if (currentIdx >= 0) {
+          const currentItem = record.reviewSchedule[currentIdx]
+          const isOnTime = today === currentItem.plannedDate
+
+          // 标记当前节点为完成（status 总是 on-time/makeup/mastered，最终态由 rating 决定）
+          currentItem.status = isOnTime ? 'on-time' : 'makeup'
+          currentItem.actualDate = today
+          currentItem.rating = rating  // 可能为 null，等 UI 选
+
+          if (rating === 'mastered') {
+            // 非常熟：终止后续所有节点
+            currentItem.status = 'mastered'
+            record.reviewSchedule = record.reviewSchedule.slice(0, currentIdx + 1)
+          } else if (rating === 'extend') {
+            // 有点生：把后续 pending 节点全部重新生成（从今天起算）
+            const remaining = REVIEW_INTERVALS.slice(currentIdx + 1)
+            const newTail = remaining.map(days => ({
+              days,
+              plannedDate: addDays(today, days),
+              status: 'pending',
+              actualDate: null,
+              rating: null
+            }))
+            record.reviewSchedule = [
+              ...record.reviewSchedule.slice(0, currentIdx + 1),
+              ...newTail
+            ]
           }
-        })
+          // 'normal' 或 null：保持原计划不变
+        } else {
+          // 找不到应当复习的节点（理论上不应到这里），全部过期 pending 标记为 makeup
+          record.reviewSchedule.forEach(item => {
+            if (item.status === 'pending' && compareDates(item.plannedDate, today) <= 0) {
+              item.status = today === item.plannedDate ? 'on-time' : 'makeup'
+              item.actualDate = today
+              item.rating = rating
+            }
+          })
+        }
       }
     }
 
     this.saveRecords(records)
     eventBus.emit(RECORDS_CHANGED, { poemId })
     return records[poemId]
+  },
+
+  // 对今天复习的节点补充评级（独立调用，避免 UI 重复存储）
+  rateTodayReview(poemId, rating) {
+    const records = this.getRecords()
+    const record = records[poemId]
+    if (!record || !record.reviewSchedule) return null
+
+    const today = getLocalDateStr()
+    const currentIdx = record.reviewSchedule.findIndex(
+      item => (item.status === 'on-time' || item.status === 'makeup')
+        && item.actualDate === today
+    )
+
+    if (currentIdx < 0) return null
+
+    const currentItem = record.reviewSchedule[currentIdx]
+    currentItem.rating = rating
+
+    if (rating === 'mastered') {
+      currentItem.status = 'mastered'
+      record.reviewSchedule = record.reviewSchedule.slice(0, currentIdx + 1)
+    } else if (rating === 'extend') {
+      const remaining = REVIEW_INTERVALS.slice(currentIdx + 1)
+      const newTail = remaining.map(days => ({
+        days,
+        plannedDate: addDays(today, days),
+        status: 'pending',
+        actualDate: null,
+        rating: null
+      }))
+      record.reviewSchedule = [
+        ...record.reviewSchedule.slice(0, currentIdx + 1),
+        ...newTail
+      ]
+    }
+    // 'normal'：保持原计划
+
+    this.saveRecords(records)
+    eventBus.emit(RECORDS_CHANGED, { poemId })
+    return record
   },
 
   getAllRecordsSorted() {
@@ -385,6 +482,9 @@ export const storage = {
       if (record.reviewDates.includes(today)) return
 
       if (!record.reviewSchedule) return
+
+      // 已掌握的诗不再显示
+      if (this.isMastered(record)) return
 
       // 检查是否有今天需要复习的节点
       const hasPendingToday = record.reviewSchedule.some(item =>

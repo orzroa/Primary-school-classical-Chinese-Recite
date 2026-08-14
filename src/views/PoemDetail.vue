@@ -7,7 +7,7 @@
       <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">{{ poem.title }}</h4>
     </div>
 
-    <div class="card mb-3" style="animation: fadeInUp 0.6s ease;">
+    <div class="card mb-3 poem-card-clickable" style="animation: fadeInUp 0.6s ease;" @click="toggleHideContent">
       <div class="card-body" style="padding: 28px;">
         <h5 class="mb-4 text-center" style="color: #785448; font-weight: 700; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 1px; font-size: 1.25rem;">{{ poem.author }}</h5>
         <div v-if="!hideContent" class="poem-content">
@@ -17,30 +17,93 @@
         </div>
         <div v-else class="text-center py-5" style="color: #8c7e6c;">
           <div class="display-4 mb-3" style="animation: pulse 2s infinite;">🙈</div>
-          <p style="font-size: 1.15rem; font-weight: 500; font-family: 'Noto Serif SC', serif;">原文已隐藏，请尝试背诵</p>
+          <p style="font-size: 1.15rem; font-weight: 500; font-family: 'Noto Serif SC', serif;">点击任意位置显示原文</p>
         </div>
       </div>
     </div>
 
-    <div class="row g-2 mb-3" style="animation: fadeInUp 0.6s ease 0.1s both;">
-      <div class="col-6">
-        <button
-          class="btn w-100"
-          :disabled="!canMark"
-          @click="markAsLearned"
-          :style="canMark ? 'background: #274a78; color: #fff6e5; box-shadow: 0 4px 15px rgba(39, 74, 120, 0.25);' : 'background: #e5dfd3; color: #8c7e6c;'"
-        >
-          {{ buttonText }}
-        </button>
+    <!-- 操作按钮区：未学习=标记初学单按钮；可复习=三选项；其他=三选项禁用+状态文字 -->
+    <div class="mb-3" style="animation: fadeInUp 0.6s ease 0.1s both;">
+      <!-- 未学习 - 单按钮 -->
+      <div v-if="!record" class="row g-2">
+        <div class="col-12">
+          <button
+            class="btn w-100"
+            @click="markAsLearned"
+            style="background: #274a78; color: #fff6e5; padding: 14px; box-shadow: 0 4px 15px rgba(39, 74, 120, 0.25); font-weight: 700; font-size: 1.05rem; letter-spacing: 2px;"
+          >
+            ✏️ 标记初学
+          </button>
+        </div>
       </div>
-      <div class="col-6">
-        <button
-          class="btn w-100"
-          @click="toggleHideContent"
-          style="background: transparent; color: #2c3e50; border: 2px solid #2c3e50; box-shadow: 0 4px 12px rgba(44, 62, 80, 0.08);"
-        >
-          {{ hideContent ? '显示原文' : '隐藏原文' }}
-        </button>
+
+      <!-- 可复习 - 三选项可点 -->
+      <div v-else-if="canReview" class="row g-2">
+        <div class="col-12 mb-2">
+          <div class="text-center text-muted" style="font-size: 0.85rem;">
+            ✨ 复习完成后，请选择熟悉程度
+          </div>
+        </div>
+        <div class="col-4">
+          <button
+            class="btn w-100 rating-btn"
+            style="background: #6c757d; color: #fff6e5; padding: 14px 6px;"
+            @click="markAndRate('mastered')"
+          >
+            <div style="font-size: 1.4rem; font-weight: 800;">🌟</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">非常熟</div>
+            <div style="font-size: 0.7rem; opacity: 0.9;">终止复习</div>
+          </button>
+        </div>
+        <div class="col-4">
+          <button
+            class="btn w-100 rating-btn"
+            style="background: #4c7d6c; color: #fff6e5; padding: 14px 6px;"
+            @click="markAndRate('normal')"
+          >
+            <div style="font-size: 1.4rem; font-weight: 800;">👍</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">正常</div>
+            <div style="font-size: 0.7rem; opacity: 0.9;">按计划走</div>
+          </button>
+        </div>
+        <div class="col-4">
+          <button
+            class="btn w-100 rating-btn"
+            style="background: #b07a3e; color: #fff6e5; padding: 14px 6px;"
+            @click="markAndRate('extend')"
+          >
+            <div style="font-size: 1.4rem; font-weight: 800;">🤔</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">有点生</div>
+            <div style="font-size: 0.7rem; opacity: 0.9;">延期复习</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 已复习 / 已掌握 / 今日已学 - 三选项禁用+显示状态 -->
+      <div v-else class="row g-2">
+        <div class="col-12 mb-2">
+          <div class="text-center" style="font-size: 0.95rem; color: #4c7d6c; font-weight: 700;">
+            {{ buttonText }}
+          </div>
+        </div>
+        <div class="col-4">
+          <button class="btn w-100 rating-btn" disabled style="background: #e5dfd3; color: #8c7e6c; padding: 14px 6px;">
+            <div style="font-size: 1.4rem; font-weight: 800;">🌟</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">非常熟</div>
+          </button>
+        </div>
+        <div class="col-4">
+          <button class="btn w-100 rating-btn" disabled style="background: #e5dfd3; color: #8c7e6c; padding: 14px 6px;">
+            <div style="font-size: 1.4rem; font-weight: 800;">👍</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">正常</div>
+          </button>
+        </div>
+        <div class="col-4">
+          <button class="btn w-100 rating-btn" disabled style="background: #e5dfd3; color: #8c7e6c; padding: 14px 6px;">
+            <div style="font-size: 1.4rem; font-weight: 800;">🤔</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">有点生</div>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -72,7 +135,7 @@
               <span>
                 第{{ item.days }}天 · {{ formatDate(item.plannedDate) }}
               </span>
-              <span class="badge" :class="getStatusBadgeClass(item.status)">
+              <span class="badge" :class="getStatusBadgeClass(item)">
                 {{ getStatusText(item) }}
               </span>
             </div>
@@ -115,7 +178,7 @@
 <script>
 import { poems } from '../data/poems'
 import { storage } from '../utils/storage'
-import { getLocalDateStr, formatDateReadable, isToday, isPast, compareDates } from '../utils/dateUtils'
+import { getLocalDateStr, formatDateReadable, isToday, isPast, compareDates, addDays } from '../utils/dateUtils'
 import { eventBus, PERSON_CHANGED, RECORDS_CHANGED } from '../utils/eventBus'
 
 export default {
@@ -141,29 +204,32 @@ export default {
 
       return content.split('\n').filter(line => line.trim());
     },
-    // 是否可以点击按钮
-    canMark() {
-      // 未学习，可以初学
-      if (!this.record) return true
-
+    // 是否可以点击"今日复习"按钮
+    canReview() {
+      if (!this.record) return false
       // 学习当天不能复习
       if (this.record.firstLearnDate === getLocalDateStr()) return false
-
-      // 今天还没复习，可以复习
+      // 今天已复习过
+      if (storage.reviewedToday(this.id)) return false
+      // 已掌握
+      if (storage.isMastered(this.record)) return false
+      // 今天有待复习节点
       return storage.needsReviewToday(this.id)
     },
-    // 按钮文本
+    // 按钮文本（用于禁用状态）
     buttonText() {
       if (!this.record) return '标记初学'
 
       if (this.record.firstLearnDate === getLocalDateStr()) return '今日已学 ✓'
+
+      if (storage.isMastered(this.record)) return '已掌握 ✓'
 
       if (storage.reviewedToday(this.id)) return '今日已复习 ✓'
 
       if (storage.needsReviewToday(this.id)) return '今日复习'
 
       return '复习完成 ✓'
-    }
+    },
   },
   mounted() {
     this.loadData()
@@ -187,18 +253,32 @@ export default {
       this.record = storage.getPoemRecord(this.id)
 
       if (this.record) {
+        // 已学过的诗默认隐藏内容（让用户先尝试背诵）
         this.hideContent = true
         this.reviewSchedule = this.record.reviewSchedule || []
         this.futureSchedule = this.reviewSchedule.filter(
           item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
         )
+      } else {
+        // 未学过的诗默认显示原文
+        this.hideContent = false
       }
     },
     goBack() {
       this.$router.back()
     },
     markAsLearned() {
+      // 初学：直接标记，不评级
       this.record = storage.addLearningRecord(this.id)
+      this.reviewSchedule = this.record.reviewSchedule || []
+      this.futureSchedule = this.reviewSchedule.filter(
+        item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
+      )
+      this.hideContent = true
+    },
+    markAndRate(rating) {
+      // 复习 + 评级：atomic 一步完成
+      this.record = storage.addLearningRecord(this.id, rating)
       this.reviewSchedule = this.record.reviewSchedule || []
       this.futureSchedule = this.reviewSchedule.filter(
         item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
@@ -210,8 +290,10 @@ export default {
     formatDate(dateStr) {
       return formatDateReadable(dateStr)
     },
-    getStatusBadgeClass(status) {
-      switch (status) {
+    getStatusBadgeClass(item) {
+      switch (item.status) {
+        case 'mastered':
+          return 'bg-secondary'
         case 'on-time':
           return 'bg-success'
         case 'makeup':
@@ -224,9 +306,13 @@ export default {
     },
     getStatusText(item) {
       switch (item.status) {
+        case 'mastered':
+          return '已掌握 🌟'
         case 'on-time':
+          if (item.rating === 'extend') return '已延期复习'
           return '已按时复习'
         case 'makeup':
+          if (item.rating === 'extend') return '已延期复习'
           return '已补复习'
         case 'pending':
           if (isToday(item.plannedDate)) {
@@ -243,3 +329,28 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.poem-card-clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  user-select: none;
+}
+
+.poem-card-clickable:active {
+  transform: scale(0.99);
+}
+
+.rating-btn {
+  transition: all 0.2s ease;
+}
+
+.rating-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.rating-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+</style>

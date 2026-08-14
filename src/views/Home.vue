@@ -119,7 +119,7 @@
                     <strong>{{ getPoemTitle(item.poemId) }}</strong>
                     <div class="text-muted small">{{ getPoemAuthor(item.poemId) }}</div>
                   </div>
-                  <span class="badge" :class="getStatusBadgeClass(item.status)">
+                  <span class="badge" :class="getStatusBadgeClass(item)">
                     {{ getStatusText(item) }}
                   </span>
                 </div>
@@ -335,14 +335,16 @@ export default {
       return formatDateReadable(dateStr)
     },
     // 状态徽章样式
-    getStatusBadgeClass(status) {
-      switch (status) {
+    getStatusBadgeClass(item) {
+      switch (item.status) {
+        case 'mastered':
+          return 'bg-secondary'  // 灰色：已掌握
         case 'on-time':
-          return 'bg-success'  // 绿色：按时复习
+          return 'bg-success'    // 绿色：按时复习
         case 'makeup':
-          return 'bg-warning'  // 橙色：补复习
+          return 'bg-warning'    // 橙色：补复习 / 延期复习
         case 'pending':
-          return 'bg-secondary' // 灰色：未复习
+          return 'bg-secondary'  // 灰色：未复习
         default:
           return 'bg-secondary'
       }
@@ -350,9 +352,13 @@ export default {
     // 状态文本
     getStatusText(item) {
       switch (item.status) {
+        case 'mastered':
+          return `已掌握 🌟`
         case 'on-time':
+          if (item.rating === 'extend') return `第${item.days}天 · 延期复习`
           return `第${item.days}天 · 按时复习`
         case 'makeup':
+          if (item.rating === 'extend') return `第${item.days}天 · 延期复习`
           return `第${item.days}天 · 补复习`
         case 'pending':
           return `第${item.days}天 · 未复习`
