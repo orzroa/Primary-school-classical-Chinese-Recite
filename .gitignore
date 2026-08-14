@@ -69,3 +69,8 @@ coverage/
 
 # Large binary files
 data/*.pdf
+
+# Personal backup files (don't commit user data)
+child_records.json
+*_records.json
+poem_learning_records_*.json

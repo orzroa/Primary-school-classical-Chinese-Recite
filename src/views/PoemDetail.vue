@@ -6,7 +6,7 @@
       </button>
       <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">{{ poem.title }}</h4>
     </div>
-    
+
     <div class="card mb-3" style="animation: fadeInUp 0.6s ease;">
       <div class="card-body" style="padding: 28px;">
         <h5 class="mb-4 text-center" style="color: #785448; font-weight: 700; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 1px; font-size: 1.25rem;">{{ poem.author }}</h5>
@@ -21,20 +21,20 @@
         </div>
       </div>
     </div>
-    
+
     <div class="row g-2 mb-3" style="animation: fadeInUp 0.6s ease 0.1s both;">
       <div class="col-6">
-        <button 
+        <button
           class="btn w-100"
-          :disabled="isTodayLearned"
+          :disabled="!canMark"
           @click="markAsLearned"
-          :style="isTodayLearned ? 'background: #e5dfd3; color: #8c7e6c;' : 'background: #274a78; color: #fff6e5; box-shadow: 0 4px 15px rgba(39, 74, 120, 0.25);'"
+          :style="canMark ? 'background: #274a78; color: #fff6e5; box-shadow: 0 4px 15px rgba(39, 74, 120, 0.25);' : 'background: #e5dfd3; color: #8c7e6c;'"
         >
-          {{ isTodayLearned ? '今日已学 ✓' : '标记学习' }}
+          {{ buttonText }}
         </button>
       </div>
       <div class="col-6">
-        <button 
+        <button
           class="btn w-100"
           @click="toggleHideContent"
           style="background: transparent; color: #2c3e50; border: 2px solid #2c3e50; box-shadow: 0 4px 12px rgba(44, 62, 80, 0.08);"
@@ -43,32 +43,44 @@
         </button>
       </div>
     </div>
-    
+
     <div class="card mb-3" style="animation: fadeInUp 0.6s ease 0.2s both;">
       <div class="card-header" style="background: #274a78; color: #fff6e5;">
-        <h5 class="mb-0"><span class="me-2">📚</span> 过去的学习过程</h5>
+        <h5 class="mb-0"><span class="me-2">📚</span> 学习过程</h5>
       </div>
       <div class="card-body">
         <div v-if="!record" class="text-muted text-center py-3">
           暂无学习记录
         </div>
         <div v-else>
-          <div class="mb-2">
+          <!-- 初学记录 -->
+          <div class="mb-3">
             <span class="badge bg-success me-2">初学</span>
-            <span>初学于{{ formatDate(record.firstLearnDate) }}</span>
+            <span>初学于 {{ formatDate(record.firstLearnDate) }}</span>
           </div>
-          <div v-if="record.reviewDates.length > 0">
+
+          <!-- 复习计划状态 -->
+          <div v-if="reviewSchedule.length > 0">
             <div class="mb-2">
-              <span class="badge bg-info">复习</span>
+              <span class="badge bg-info">复习计划</span>
             </div>
-            <div v-for="(date, index) in record.reviewDates" :key="index" class="ms-4 my-1">
-              复习于{{ formatDate(date) }}
+            <div
+              v-for="(item, index) in reviewSchedule"
+              :key="index"
+              class="ms-4 my-2 d-flex justify-content-between align-items-center"
+            >
+              <span>
+                第{{ item.days }}天 · {{ formatDate(item.plannedDate) }}
+              </span>
+              <span class="badge" :class="getStatusBadgeClass(item.status)">
+                {{ getStatusText(item) }}
+              </span>
             </div>
           </div>
         </div>
       </div>
     </div>
-    
+
     <div class="card" style="animation: fadeInUp 0.6s ease 0.3s both;">
       <div class="card-header" style="background: #4c7d6c; color: #fff6e5;">
         <h5 class="mb-0"><span class="me-2">📅</span> 将来的复习计划</h5>
@@ -78,20 +90,20 @@
           请先标记初学，复习计划将在此显示
         </div>
         <div v-else>
-          <div 
-            v-for="(item, index) in reviewSchedule" 
+          <div v-if="futureSchedule.length === 0" class="text-muted text-center py-3">
+            所有复习计划已完成 ✓
+          </div>
+          <div
+            v-for="(item, index) in futureSchedule"
             :key="index"
             class="d-flex justify-content-between align-items-center mb-2"
           >
             <span>
-              <span class="badge bg-secondary me-2">{{ item.days }}天后</span>
-              {{ formatDate(item.date) }}
+              <span class="badge bg-secondary me-2">第{{ item.days }}天</span>
+              {{ formatDate(item.plannedDate) }}
             </span>
-            <span 
-              class="badge" 
-              :class="getReviewStatusClass(item.date)"
-            >
-              {{ getReviewStatus(item.date) }}
+            <span class="badge bg-primary">
+              待复习
             </span>
           </div>
         </div>
@@ -103,7 +115,8 @@
 <script>
 import { poems } from '../data/poems'
 import { storage } from '../utils/storage'
-import { getLocalDateStr, formatDateReadable, isToday, isPast } from '../utils/dateUtils'
+import { getLocalDateStr, formatDateReadable, isToday, isPast, compareDates } from '../utils/dateUtils'
+import { eventBus, PERSON_CHANGED, RECORDS_CHANGED } from '../utils/eventBus'
 
 export default {
   name: 'PoemDetail',
@@ -114,7 +127,7 @@ export default {
       record: null,
       hideContent: false,
       reviewSchedule: [],
-      isTodayLearned: false
+      futureSchedule: []
     }
   },
   computed: {
@@ -122,19 +135,49 @@ export default {
       if (!this.poem || !this.poem.content) return [];
       const content = this.poem.content;
 
-      // 如果内容包含双换行（\n\n），说明是分段的文章
       if (content.includes('\n\n')) {
         return content.split('\n\n').filter(p => p.trim()).map(p => p.replace(/\n/g, ''));
       }
 
-      // 否则是诗词，按换行分行显示
       return content.split('\n').filter(line => line.trim());
+    },
+    // 是否可以点击按钮
+    canMark() {
+      // 未学习，可以初学
+      if (!this.record) return true
+
+      // 学习当天不能复习
+      if (this.record.firstLearnDate === getLocalDateStr()) return false
+
+      // 今天还没复习，可以复习
+      return storage.needsReviewToday(this.id)
+    },
+    // 按钮文本
+    buttonText() {
+      if (!this.record) return '标记初学'
+
+      if (this.record.firstLearnDate === getLocalDateStr()) return '今日已学 ✓'
+
+      if (storage.reviewedToday(this.id)) return '今日已复习 ✓'
+
+      if (storage.needsReviewToday(this.id)) return '今日复习'
+
+      return '复习完成 ✓'
     }
   },
   mounted() {
     this.loadData()
+    eventBus.on(PERSON_CHANGED, this.handleRefresh)
+    eventBus.on(RECORDS_CHANGED, this.handleRefresh)
+  },
+  beforeUnmount() {
+    eventBus.off(PERSON_CHANGED, this.handleRefresh)
+    eventBus.off(RECORDS_CHANGED, this.handleRefresh)
   },
   methods: {
+    handleRefresh() {
+      this.loadData()
+    },
     findPoem() {
       const grade = parseInt(this.id.split('-')[0])
       const poemList = poems[grade]
@@ -142,22 +185,24 @@ export default {
     },
     loadData() {
       this.record = storage.getPoemRecord(this.id)
-      this.isTodayLearned = storage.isReviewedToday(this.id)
-      
-      // 如果已经初学过，默认隐藏原文
+
       if (this.record) {
         this.hideContent = true
+        this.reviewSchedule = this.record.reviewSchedule || []
+        this.futureSchedule = this.reviewSchedule.filter(
+          item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
+        )
       }
-      
-      this.reviewSchedule = storage.getReviewSchedule(this.id)
     },
     goBack() {
       this.$router.back()
     },
     markAsLearned() {
       this.record = storage.addLearningRecord(this.id)
-      this.isTodayLearned = true
-      this.reviewSchedule = storage.getReviewSchedule(this.id)
+      this.reviewSchedule = this.record.reviewSchedule || []
+      this.futureSchedule = this.reviewSchedule.filter(
+        item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
+      )
     },
     toggleHideContent() {
       this.hideContent = !this.hideContent
@@ -165,22 +210,34 @@ export default {
     formatDate(dateStr) {
       return formatDateReadable(dateStr)
     },
-    getReviewStatus(date) {
-      if (isToday(date)) {
-        return '今日'
-      } else if (isPast(date)) {
-        return '已过'
-      } else {
-        return '待复习'
+    getStatusBadgeClass(status) {
+      switch (status) {
+        case 'on-time':
+          return 'bg-success'
+        case 'makeup':
+          return 'bg-warning'
+        case 'pending':
+          return 'bg-secondary'
+        default:
+          return 'bg-secondary'
       }
     },
-    getReviewStatusClass(date) {
-      if (isToday(date)) {
-        return 'bg-danger'
-      } else if (isPast(date)) {
-        return 'bg-secondary'
-      } else {
-        return 'bg-light text-dark'
+    getStatusText(item) {
+      switch (item.status) {
+        case 'on-time':
+          return '已按时复习'
+        case 'makeup':
+          return '已补复习'
+        case 'pending':
+          if (isToday(item.plannedDate)) {
+            return '今日待复习'
+          } else if (isPast(item.plannedDate)) {
+            return '已过期'
+          } else {
+            return '待复习'
+          }
+        default:
+          return ''
       }
     }
   }

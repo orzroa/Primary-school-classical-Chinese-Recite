@@ -276,6 +276,16 @@ body {
   color: #fff6e5 !important;
 }
 
+.bg-warning {
+  background-color: #c9372e !important;
+  color: #fff6e5 !important;
+}
+
+.bg-danger {
+  background-color: #c8392f !important;
+  color: #fff6e5 !important;
+}
+
 h1, h2, h3, h4, h5 {
   font-weight: 700;
   font-family: 'ZCOOL XiaoWei', serif;

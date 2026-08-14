@@ -3,12 +3,26 @@
     <div class="text-center mb-5" style="animation: fadeInDown 0.8s ease;">
       <h1 class="mb-1" style="color: #2c3e50; font-size: 2.5rem; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 4px;">古诗词背诵</h1>
       <p style="color: #785448; font-family: 'Long Cang', cursive; font-size: 1.35rem; margin-top: 5px;">温故而知新，可以为师矣</p>
-      <button class="btn btn-sm mt-2" style="background: #f6f3eb; color: #785448; border: 1px solid #785448; font-size: 0.85rem;" @click="goToSettings">
-        ⚙️ 设置
-      </button>
+      <div class="d-flex justify-content-center align-items-center mt-3" style="gap: 10px; flex-wrap: wrap;">
+        <div class="person-switcher">
+          <span style="color: #785448; font-size: 0.85rem; margin-right: 6px;">当前：</span>
+          <button
+            v-for="p in persons"
+            :key="p.id"
+            class="btn btn-sm person-chip"
+            :class="{ active: p.id === currentPerson.id }"
+            @click="switchPerson(p.id)"
+          >
+            {{ p.name }}
+          </button>
+        </div>
+        <button class="btn btn-sm" style="background: #f6f3eb; color: #785448; border: 1px solid #785448; font-size: 0.85rem;" @click="goToSettings">
+          ⚙️ 设置
+        </button>
+      </div>
     </div>
-    
-    <div class="row g-3 mb-5">
+
+    <div class="row g-3 mb-4">
       <div v-for="grade in 8" :key="grade" class="col-4">
         <button
           class="btn btn-grade"
@@ -19,19 +33,37 @@
         </button>
       </div>
     </div>
-    
+
+    <div class="text-center mb-4">
+      <button
+        class="btn"
+        style="background: #522c5e; color: #fff6e5; border: none; box-shadow: 0 4px 15px rgba(82, 44, 94, 0.2); font-family: 'ZCOOL XiaoWei', serif; font-size: 1.15rem; padding: 12px 36px; letter-spacing: 2px;"
+        @click="goToQuiz"
+      >
+        📝 测验
+      </button>
+    </div>
+
+    <!-- 今日待复习 -->
     <div class="card">
-      <div class="card-header" style="background: #c8392f; color: #fff6e5;">
-        <h5 class="mb-0"><span class="me-2">🎯</span> 今日待学</h5>
+      <div
+        class="card-header collapsible-header"
+        style="background: #c8392f; color: #fff6e5;"
+        @click="toggleCollapse('today')"
+      >
+        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+          <span><span class="me-2">🎯</span> 今日待复习</span>
+          <span class="collapse-icon">{{ collapsed.today ? '▼' : '▲' }}</span>
+        </h5>
       </div>
-      <div class="card-body p-0">
-        <div v-if="todayTodos.length === 0" class="text-center py-4 text-muted">
-          今天没有任务，休息一下吧 ✨
+      <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.today }">
+        <div v-if="todayPending.length === 0" class="text-center py-4 text-muted">
+          今天没有待复习任务，休息一下吧 ✨
         </div>
         <div v-else class="list-group list-group-flush">
           <div
-            v-for="item in todayTodos"
-            :key="item.poemId"
+            v-for="item in todayPending"
+            :key="item.poemId + '-' + item.days"
             class="list-group-item poem-card"
             @click="goToPoem(item.poemId)"
           >
@@ -41,7 +73,7 @@
                 <div class="text-muted small">{{ getPoemAuthor(item.poemId) }}</div>
               </div>
               <span class="badge bg-danger">
-                今天 · 待复习
+                第{{ item.days }}天 · 待复习
               </span>
             </div>
           </div>
@@ -49,68 +81,36 @@
       </div>
     </div>
 
+    <!-- 学习记录（过去和今天的复习计划） -->
     <div class="card mt-3">
-      <div class="card-header" style="background: #274a78; color: #fff6e5;">
-        <h5 class="mb-0"><span class="me-2">📝</span> 过去的学习记录</h5>
+      <div
+        class="card-header collapsible-header"
+        style="background: #274a78; color: #fff6e5;"
+        @click="toggleCollapse('history')"
+      >
+        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+          <span><span class="me-2">📝</span> 学习记录（过去）</span>
+          <span class="collapse-icon">{{ collapsed.history ? '▼' : '▲' }}</span>
+        </h5>
       </div>
-      <div class="card-body p-0">
-        <div v-if="Object.keys(groupedRecords).length === 0" class="text-center py-4 text-muted">
+      <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.history }">
+        <div v-if="Object.keys(groupedPastHistory).length === 0" class="text-center py-4 text-muted">
           暂无学习记录
         </div>
 
         <div v-else>
-          <div 
-            v-for="(group, date) in groupedRecords" 
+          <div
+            v-for="(group, date) in groupedPastHistory"
             :key="date"
             class="mb-3"
           >
             <div class="bg-light px-3 py-2 border-bottom">
-              <strong>{{ date }}</strong>
-            </div>
-            <div class="list-group list-group-flush">
-              <div 
-                v-for="record in group" 
-                :key="record.poemId"
-                class="list-group-item poem-card"
-                @click="goToPoem(record.poemId)"
-              >
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>{{ getPoemTitle(record.poemId) }}</strong>
-                    <div class="text-muted small">{{ getPoemAuthor(record.poemId) }}</div>
-                  </div>
-                  <span class="badge" :class="getRecordBadgeClass(record)">
-                    {{ getRecordType(record) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="card mt-3">
-      <div class="card-header" style="background: #4c7d6c; color: #fff6e5;">
-        <h5 class="mb-0"><span class="me-2">📅</span> 将来的复习计划</h5>
-      </div>
-      <div class="card-body p-0">
-        <div v-if="Object.keys(groupedReviewPlan).length === 0" class="text-center py-4 text-muted">
-          暂无复习计划
-        </div>
-        <div v-else>
-          <div
-            v-for="group in groupedReviewPlan"
-            :key="group.date"
-            class="mb-3"
-          >
-            <div class="bg-light px-3 py-2 border-bottom">
-              <strong>{{ group.date }}</strong>
+              <strong>{{ formatDate(date) }}</strong>
             </div>
             <div class="list-group list-group-flush">
               <div
-                v-for="item in group.items"
-                :key="item.poemId"
+                v-for="item in group"
+                :key="item.poemId + '-' + item.days"
                 class="list-group-item poem-card"
                 @click="goToPoem(item.poemId)"
               >
@@ -119,8 +119,56 @@
                     <strong>{{ getPoemTitle(item.poemId) }}</strong>
                     <div class="text-muted small">{{ getPoemAuthor(item.poemId) }}</div>
                   </div>
-                  <span class="badge bg-secondary">
-                    {{ item.days }}天后
+                  <span class="badge" :class="getStatusBadgeClass(item.status)">
+                    {{ getStatusText(item) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 将来的复习计划 -->
+    <div class="card mt-3">
+      <div
+        class="card-header collapsible-header"
+        style="background: #4c7d6c; color: #fff6e5;"
+        @click="toggleCollapse('future')"
+      >
+        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+          <span><span class="me-2">📅</span> 将来的复习计划</span>
+          <span class="collapse-icon">{{ collapsed.future ? '▼' : '▲' }}</span>
+        </h5>
+      </div>
+      <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.future }">
+        <div v-if="futureReviewPlan.length === 0" class="text-center py-4 text-muted">
+          暂无复习计划
+        </div>
+        <div v-else>
+          <div
+            v-for="group in futureReviewPlan"
+            :key="group.date"
+            class="mb-3"
+          >
+            <div class="bg-light px-3 py-2 border-bottom">
+              <strong>{{ formatDate(group.date) }}</strong>
+            </div>
+            <div class="list-group list-group-flush">
+              <div
+                v-for="item in group.items"
+                :key="item.poemId + '-' + item.days"
+                class="list-group-item poem-card"
+                @click="goToPoem(item.poemId)"
+              >
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>{{ getPoemTitle(item.poemId) }}</strong>
+                    <div class="text-muted small">{{ getPoemAuthor(item.poemId) }}</div>
+                  </div>
+                  <span class="badge bg-primary">
+                    第{{ item.days }}天 · 待复习
                   </span>
                 </div>
               </div>
@@ -135,21 +183,53 @@
 <script>
 import { poems } from '../data/poems'
 import { storage } from '../utils/storage'
-import { getLocalDateStr, formatDateReadable } from '../utils/dateUtils'
+import { getLocalDateStr, formatDateReadable, compareDates } from '../utils/dateUtils'
+import { eventBus, PERSON_CHANGED, RECORDS_CHANGED } from '../utils/eventBus'
+
+const COLLAPSE_KEY = 'home_collapsed_state'
 
 export default {
   name: 'Home',
   data() {
     return {
       poems,
-      allRecords: [],
-      groupedRecords: {},
-      groupedReviewPlan: {},
-      todayTodos: []
+      todayPending: [],
+      groupedPastHistory: {},
+      futureReviewPlan: [],
+      collapsed: {
+        today: false,
+        history: true,
+        future: true
+      },
+      persons: [],
+      currentPerson: null
+    }
+  },
+  created() {
+    this.persons = storage.getPersons()
+    this.currentPerson = storage.getCurrentPerson()
+
+    // 从 localStorage 读取折叠状态
+    try {
+      const saved = localStorage.getItem(COLLAPSE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (typeof parsed.today === 'boolean') this.collapsed.today = parsed.today
+        if (typeof parsed.history === 'boolean') this.collapsed.history = parsed.history
+        if (typeof parsed.future === 'boolean') this.collapsed.future = parsed.future
+      }
+    } catch (e) {
+      // 忽略
     }
   },
   mounted() {
     this.loadRecords()
+    eventBus.on(PERSON_CHANGED, this.onPersonChanged)
+    eventBus.on(RECORDS_CHANGED, this.onRecordsChanged)
+  },
+  beforeUnmount() {
+    eventBus.off(PERSON_CHANGED, this.onPersonChanged)
+    eventBus.off(RECORDS_CHANGED, this.onRecordsChanged)
   },
   methods: {
     getGradeName(grade) {
@@ -157,74 +237,77 @@ export default {
       if (grade === 8) return '附加二'
       return grade + '年级'
     },
+    toggleCollapse(section) {
+      this.collapsed[section] = !this.collapsed[section]
+      // 保存到 localStorage
+      try {
+        localStorage.setItem(COLLAPSE_KEY, JSON.stringify(this.collapsed))
+      } catch (e) {
+        // 忽略
+      }
+    },
     loadRecords() {
-      this.allRecords = storage.getAllRecordsSorted()
-      this.groupedRecords = this.groupRecordsByDate()
-      this.groupedReviewPlan = this.getReviewPlan()
-      this.todayTodos = this.getTodayTodos()
+      this.todayPending = storage.getTodayPendingReviews()
+      this.groupedPastHistory = this.groupPastHistory()
+      this.futureReviewPlan = this.getFutureReviewPlan()
     },
-    getTodayTodos() {
+    switchPerson(personId) {
+      if (storage.setCurrentPerson(personId)) {
+        // 同步 persons 列表（防止后台新增）
+        this.persons = storage.getPersons()
+        this.currentPerson = storage.getCurrentPerson()
+        this.loadRecords()
+      }
+    },
+    onPersonChanged(person) {
+      this.persons = storage.getPersons()
+      this.currentPerson = person || storage.getCurrentPerson()
+      this.loadRecords()
+    },
+    onRecordsChanged() {
+      this.loadRecords()
+    },
+    // 按日期分组过去的复习计划（计划日期 < 今天，不包括今天）
+    groupPastHistory() {
       const today = getLocalDateStr()
-      const todos = []
-
-      this.allRecords.forEach(record => {
-        const schedule = storage.getReviewSchedule(record.poemId)
-        schedule.forEach(item => {
-          if (item.date === today && !record.reviewDates.includes(today)) {
-            todos.push({
-              poemId: record.poemId,
-              days: item.days
-            })
-          }
-        })
-      })
-
-      return todos
-    },
-    getReviewPlan() {
+      const history = storage.getAllReviewHistory()
       const grouped = {}
-      const todayStr = getLocalDateStr()
 
-      this.allRecords.forEach(record => {
-        const schedule = storage.getReviewSchedule(record.poemId)
-
-        schedule.forEach(item => {
-          if (item.date >= todayStr) {
-            const isReviewed = record.reviewDates.includes(item.date)
-            if (!isReviewed) {
-              const date = item.date
-              if (!grouped[date]) {
-                grouped[date] = []
-              }
-              grouped[date].push({
-                poemId: record.poemId,
-                days: item.days
-              })
-            }
+      history.forEach(item => {
+        // 只显示计划日期 < 今天的内容（不包括今天）
+        if (compareDates(item.plannedDate, today) < 0) {
+          const date = item.plannedDate
+          if (!grouped[date]) {
+            grouped[date] = []
           }
-        })
+          grouped[date].push(item)
+        }
       })
 
-      // 按日期排序，返回有序数组
-      const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b))
+      return grouped
+    },
+    // 获取未来复习计划（pending状态且计划日期 > 今天）
+    getFutureReviewPlan() {
+      const today = getLocalDateStr()
+      const history = storage.getAllReviewHistory()
+      const grouped = {}
+
+      history.forEach(item => {
+        if (item.status === 'pending' && compareDates(item.plannedDate, today) > 0) {
+          const date = item.plannedDate
+          if (!grouped[date]) {
+            grouped[date] = []
+          }
+          grouped[date].push(item)
+        }
+      })
+
+      // 按日期排序
+      const sortedDates = Object.keys(grouped).sort((a, b) => compareDates(a, b))
       return sortedDates.map(date => ({
         date,
         items: grouped[date]
       }))
-    },
-    groupRecordsByDate() {
-      const grouped = {}
-
-      this.allRecords.forEach(record => {
-        const lastDate = record.reviewDates[0] || record.firstLearnDate
-
-        if (!grouped[lastDate]) {
-          grouped[lastDate] = []
-        }
-        grouped[lastDate].push(record)
-      })
-
-      return grouped
     },
     goToGrade(grade) {
       this.$router.push({ name: 'PoemList', params: { grade } })
@@ -232,38 +315,110 @@ export default {
     goToSettings() {
       this.$router.push({ name: 'Settings' })
     },
+    goToQuiz() {
+      this.$router.push({ name: 'Quiz' })
+    },
     goToPoem(poemId) {
       this.$router.push({ name: 'PoemDetail', params: { id: poemId } })
     },
     getPoemTitle(poemId) {
       const grade = parseInt(poemId.split('-')[0])
-      const poem = this.poems[grade].find(p => p.id === poemId)
+      const poem = this.poems[grade]?.find(p => p.id === poemId)
       return poem ? poem.title : '未知'
     },
     getPoemAuthor(poemId) {
       const grade = parseInt(poemId.split('-')[0])
-      const poem = this.poems[grade].find(p => p.id === poemId)
+      const poem = this.poems[grade]?.find(p => p.id === poemId)
       return poem ? poem.author : '未知'
-    },
-    getRecordBadgeClass(record) {
-      const lastDate = record.reviewDates[0] || record.firstLearnDate
-      if (lastDate === record.firstLearnDate) {
-        return 'bg-success'
-      } else {
-        return 'bg-info'
-      }
-    },
-    getRecordType(record) {
-      const lastDate = record.reviewDates[0] || record.firstLearnDate
-      if (lastDate === record.firstLearnDate) {
-        return '初学'
-      } else {
-        return '复习'
-      }
     },
     formatDate(dateStr) {
       return formatDateReadable(dateStr)
+    },
+    // 状态徽章样式
+    getStatusBadgeClass(status) {
+      switch (status) {
+        case 'on-time':
+          return 'bg-success'  // 绿色：按时复习
+        case 'makeup':
+          return 'bg-warning'  // 橙色：补复习
+        case 'pending':
+          return 'bg-secondary' // 灰色：未复习
+        default:
+          return 'bg-secondary'
+      }
+    },
+    // 状态文本
+    getStatusText(item) {
+      switch (item.status) {
+        case 'on-time':
+          return `第${item.days}天 · 按时复习`
+        case 'makeup':
+          return `第${item.days}天 · 补复习`
+        case 'pending':
+          return `第${item.days}天 · 未复习`
+        default:
+          return `第${item.days}天`
+      }
     }
   }
 }
 </script>
+
+<style scoped>
+.collapsible-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  opacity: 0.9;
+}
+
+.collapse-icon {
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+
+.collapse-body {
+  max-height: 50000px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.collapse-body.collapsed {
+  max-height: 0;
+}
+
+.person-switcher {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #f6f3eb;
+  border-radius: 20px;
+  border: 1px solid #e5dfd3;
+}
+
+.person-chip {
+  background: transparent;
+  color: #785448;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.person-chip:hover {
+  background: rgba(120, 84, 72, 0.08);
+}
+
+.person-chip.active {
+  background: #522c5e;
+  color: #fff6e5;
+  border-color: #522c5e;
+  box-shadow: 0 2px 8px rgba(82, 44, 94, 0.25);
+}
+</style>

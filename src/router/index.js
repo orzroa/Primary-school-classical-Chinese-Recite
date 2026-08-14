@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 import PoemList from '../views/PoemList.vue'
 import PoemDetail from '../views/PoemDetail.vue'
 import Settings from '../views/Settings.vue'
+import Quiz from '../views/Quiz.vue'
 
 const routes = [
   {
@@ -26,6 +27,11 @@ const routes = [
     path: '/settings',
     name: 'Settings',
     component: Settings
+  },
+  {
+    path: '/quiz',
+    name: 'Quiz',
+    component: Quiz
   }
 ]
 

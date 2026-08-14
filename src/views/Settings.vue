@@ -7,12 +7,78 @@
       <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">设置</h4>
     </div>
 
+    <!-- 人员管理 -->
     <div class="card mb-3" style="animation: fadeInUp 0.6s ease;">
+      <div class="card-header" style="background: #522c5e; color: #fff6e5;">
+        <h5 class="mb-0"><span class="me-2">👤</span> 人员管理</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3" style="font-size: 0.9rem;">
+          可以分别为不同的人记录学习进度（如"我"、"孩子"），数据完全隔离。
+        </p>
+
+        <div class="list-group mb-3">
+          <div
+            v-for="p in persons"
+            :key="p.id"
+            class="list-group-item d-flex justify-content-between align-items-center"
+            :class="{ 'active-person': p.id === currentPerson.id }"
+          >
+            <div>
+              <strong>{{ p.name }}</strong>
+              <span v-if="p.id === currentPerson.id" class="badge ms-2" style="background: #522c5e; color: #fff6e5;">当前</span>
+              <span v-if="p.isDefault" class="badge ms-2 bg-secondary">默认</span>
+              <div class="text-muted small">已学 {{ statsMap[p.id] || 0 }} 首</div>
+            </div>
+            <div class="d-flex" style="gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+              <button
+                v-if="p.id !== currentPerson.id"
+                class="btn btn-sm"
+                style="background: #274a78; color: #fff6e5;"
+                @click="switchTo(p.id)"
+              >切换</button>
+              <button
+                class="btn btn-sm"
+                style="background: #f6f3eb; color: #785448; border: 1px solid #785448;"
+                @click="renamePerson(p)"
+              >重命名</button>
+              <button
+                v-if="!p.isDefault"
+                class="btn btn-sm"
+                style="background: #c8392f; color: #fff6e5;"
+                @click="deletePerson(p)"
+              >删除</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <input
+            v-model="newPersonName"
+            type="text"
+            class="form-control"
+            placeholder="输入新人员名称（如：孩子）"
+            maxlength="20"
+            @keyup.enter="addPerson"
+          />
+          <button
+            class="btn"
+            style="background: #522c5e; color: #fff6e5;"
+            :disabled="!newPersonName.trim()"
+            @click="addPerson"
+          >
+            + 添加
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3" style="animation: fadeInUp 0.6s ease 0.1s both;">
       <div class="card-header" style="background: #274a78; color: #fff6e5;">
         <h5 class="mb-0"><span class="me-2">📤</span> 导出进度</h5>
       </div>
       <div class="card-body">
-        <p class="text-muted mb-3">将背诵记录导出为文件，可用于备份或迁移到其他设备。</p>
+        <p class="text-muted mb-3">将「{{ currentPerson.name }}」的背诵记录导出为文件，可用于备份或迁移到其他设备。</p>
         <div class="alert alert-info mb-3" role="alert">
           <strong>当前记录：</strong>已学习 {{ learnedCount }} 首诗文
         </div>
@@ -22,14 +88,14 @@
       </div>
     </div>
 
-    <div class="card" style="animation: fadeInUp 0.6s ease 0.1s both;">
+    <div class="card" style="animation: fadeInUp 0.6s ease 0.2s both;">
       <div class="card-header" style="background: #4c7d6c; color: #fff6e5;">
         <h5 class="mb-0"><span class="me-2">📥</span> 导入进度</h5>
       </div>
       <div class="card-body">
-        <p class="text-muted mb-3">从备份文件恢复背诵记录。</p>
+        <p class="text-muted mb-3">将备份文件恢复到「{{ currentPerson.name }}」名下，会覆盖当前记录。</p>
         <div class="alert alert-warning mb-3" role="alert">
-          <strong>注意：</strong>导入会覆盖当前所有记录，请确保已备份现有数据。
+          <strong>注意：</strong>导入会覆盖当前人员的所有记录，请确保已备份现有数据。
         </div>
         <input
           type="file"
@@ -54,37 +120,88 @@
 import { storage } from '../utils/storage'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
+import { eventBus, RECORDS_CHANGED } from '../utils/eventBus'
 
 export default {
   name: 'Settings',
   data() {
     return {
+      persons: [],
+      currentPerson: null,
+      statsMap: {},
+      newPersonName: '',
       learnedCount: 0,
       message: '',
       messageClass: ''
     }
   },
   mounted() {
-    this.updateStats()
+    this.refreshPersons()
   },
   methods: {
     goBack() {
       this.$router.back()
     },
-    updateStats() {
-      const records = storage.getAllRecordsSorted()
-      this.learnedCount = records.length
+    refreshPersons() {
+      this.persons = storage.getPersons()
+      this.currentPerson = storage.getCurrentPerson()
+      this.statsMap = {}
+      this.persons.forEach(p => {
+        this.statsMap[p.id] = storage.getPersonStats(p.id).total
+      })
+      this.learnedCount = this.statsMap[this.currentPerson.id] || 0
+    },
+    addPerson() {
+      const name = this.newPersonName.trim()
+      if (!name) return
+      const p = storage.addPerson(name)
+      if (p) {
+        this.newPersonName = ''
+        this.refreshPersons()
+        this.showMessage(`已添加人员：${p.name}`, 'alert-success')
+      }
+    },
+    renamePerson(person) {
+      const newName = prompt('修改人员名称', person.name)
+      if (newName === null) return
+      const trimmed = newName.trim()
+      if (!trimmed) {
+        this.showMessage('名称不能为空', 'alert-danger')
+        return
+      }
+      if (storage.updatePersonName(person.id, trimmed)) {
+        this.refreshPersons()
+        this.showMessage('已更新', 'alert-success')
+      }
+    },
+    deletePerson(person) {
+      if (!confirm(`确定要删除「${person.name}」及其所有学习记录吗？此操作不可撤销。`)) {
+        return
+      }
+      if (storage.deletePerson(person.id)) {
+        this.refreshPersons()
+        this.showMessage(`已删除：${person.name}`, 'alert-success')
+      }
+    },
+    switchTo(personId) {
+      storage.setCurrentPerson(personId)
+      this.refreshPersons()
     },
     async exportData() {
       const records = storage.getRecords()
       const exportObj = {
         version: 1,
         exportDate: new Date().toISOString(),
+        person: {
+          id: this.currentPerson.id,
+          name: this.currentPerson.name
+        },
         records: records
       }
 
       const date = new Date().toISOString().split('T')[0]
-      const filename = `古诗词背诵备份_${date}.json`
+      const safeName = this.currentPerson.name.replace(/[\\/:*?"<>|]/g, '_')
+      const filename = `古诗词背诵_${safeName}_${date}.json`
       const content = JSON.stringify(exportObj, null, 2)
 
       try {
@@ -99,7 +216,7 @@ export default {
 
         await Share.share({
           title: '分享备份文件',
-          text: '古诗词背诵进度备份',
+          text: `${this.currentPerson.name}的古诗词背诵进度备份`,
           url: uri,
           dialogTitle: '分享备份文件'
         })
@@ -129,12 +246,12 @@ export default {
             throw new Error('无效的备份文件格式')
           }
 
-          if (!confirm('导入将覆盖当前所有记录，确定要继续吗？')) {
+          if (!confirm(`导入将覆盖「${this.currentPerson.name}」的所有记录，确定要继续吗？`)) {
             return
           }
 
           storage.saveRecords(data.records)
-          this.updateStats()
+          this.refreshPersons()
           this.showMessage(`导入成功！已恢复 ${Object.keys(data.records).length} 条记录。`, 'alert-success')
         } catch (err) {
           this.showMessage('导入失败：' + err.message, 'alert-danger')
@@ -188,5 +305,14 @@ export default {
 .btn-success:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(76, 125, 108, 0.3);
+}
+
+.active-person {
+  background: rgba(82, 44, 94, 0.05) !important;
+  border-left: 4px solid #522c5e;
+}
+
+.list-group-item {
+  border-color: #e5dfd3;
 }
 </style>
