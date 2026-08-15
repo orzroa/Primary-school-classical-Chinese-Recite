@@ -7,7 +7,16 @@
       <h4 class="mb-0" style="color: #2c3e50; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 2px;">{{ poem.title }}</h4>
     </div>
 
-    <div class="card mb-3 poem-card-clickable" style="animation: fadeInUp 0.6s ease;" @click="toggleHideContent">
+    <div
+      class="card mb-3 poem-card-clickable"
+      role="button"
+      tabindex="0"
+      :aria-expanded="!hideContent"
+      aria-label="显示或隐藏诗词原文"
+      @click="toggleHideContent"
+      @keydown.enter="toggleHideContent"
+      @keydown.space.prevent="toggleHideContent"
+    >
       <div class="card-body" style="padding: 28px;">
         <h5 class="mb-4 text-center" style="color: #785448; font-weight: 700; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 1px; font-size: 1.25rem;">{{ poem.author }}</h5>
         <div v-if="!hideContent" class="poem-content">
@@ -15,7 +24,7 @@
             {{ line }}
           </div>
         </div>
-        <div v-else class="text-center py-5" style="color: #8c7e6c;">
+        <div v-else class="text-center py-5" style="color: var(--color-muted);">
           <div class="display-4 mb-3" style="animation: pulse 2s infinite;">🙈</div>
           <p style="font-size: 1.15rem; font-weight: 500; font-family: 'Noto Serif SC', serif;">点击任意位置显示原文</p>
         </div>
@@ -46,35 +55,32 @@
         </div>
         <div class="col-4">
           <button
-            class="btn w-100 rating-btn"
-            style="background: #6c757d; color: #fff6e5; padding: 14px 6px;"
-            @click="markAndRate('mastered')"
+            class="btn w-100 rating-btn rating-retry"
+            @click="markAndRate('extend')"
           >
-            <div style="font-size: 1.4rem; font-weight: 800;">🌟</div>
-            <div style="font-size: 0.95rem; font-weight: 700;">非常熟</div>
-            <div class="rating-effect">结束本轮</div>
+            <div class="rating-icon">🤔</div>
+            <div class="rating-title">有点生</div>
+            <div class="rating-effect">保持当前步长</div>
           </button>
         </div>
         <div class="col-4">
           <button
-            class="btn w-100 rating-btn"
-            style="background: #4c7d6c; color: #fff6e5; padding: 14px 6px;"
+            class="btn w-100 rating-btn rating-normal"
             @click="markAndRate('normal')"
           >
-            <div style="font-size: 1.4rem; font-weight: 800;">👍</div>
-            <div style="font-size: 0.95rem; font-weight: 700;">正常</div>
+            <div class="rating-icon">👍</div>
+            <div class="rating-title">正常</div>
             <div class="rating-effect">保持计划</div>
           </button>
         </div>
         <div class="col-4">
           <button
-            class="btn w-100 rating-btn"
-            style="background: #b07a3e; color: #fff6e5; padding: 14px 6px;"
-            @click="markAndRate('extend')"
+            class="btn w-100 rating-btn rating-mastered"
+            @click="markAndRate('mastered')"
           >
-            <div style="font-size: 1.4rem; font-weight: 800;">🤔</div>
-            <div style="font-size: 0.95rem; font-weight: 700;">有点生</div>
-            <div class="rating-effect">保持当前步长</div>
+            <div class="rating-icon">🌟</div>
+            <div class="rating-title">非常熟</div>
+            <div class="rating-effect">结束本轮</div>
           </button>
         </div>
       </div>
@@ -95,7 +101,7 @@
 
     <div class="card mb-3" style="animation: fadeInUp 0.6s ease 0.2s both;">
       <div class="card-header" style="background: #274a78; color: #fff6e5;">
-        <h5 class="mb-0"><span class="me-2">📚</span> 学习过程</h5>
+        <h5 class="mb-0"><span class="me-2">📚</span> 复习进度</h5>
       </div>
       <div class="card-body">
         <div v-if="!record" class="text-muted text-center py-3">
@@ -116,7 +122,7 @@
             <div
               v-for="(item, index) in reviewSchedule"
               :key="index"
-              class="ms-4 my-2 d-flex justify-content-between align-items-center"
+              class="schedule-row"
             >
               <span>
                 第{{ item.days }}天 · {{ formatDate(item.plannedDate) }}
@@ -125,35 +131,6 @@
                 {{ getStatusText(item) }}
               </span>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="animation: fadeInUp 0.6s ease 0.3s both;">
-      <div class="card-header" style="background: #4c7d6c; color: #fff6e5;">
-        <h5 class="mb-0"><span class="me-2">📅</span> 将来的复习计划</h5>
-      </div>
-      <div class="card-body">
-        <div v-if="!record" class="text-muted text-center py-3">
-          请先标记初学，复习计划将在此显示
-        </div>
-        <div v-else>
-          <div v-if="futureSchedule.length === 0" class="text-muted text-center py-3">
-            所有复习计划已完成 ✓
-          </div>
-          <div
-            v-for="(item, index) in futureSchedule"
-            :key="index"
-            class="d-flex justify-content-between align-items-center mb-2"
-          >
-            <span>
-              <span class="badge bg-secondary me-2">第{{ item.days }}天</span>
-              {{ formatDate(item.plannedDate) }}
-            </span>
-            <span class="badge bg-primary">
-              待复习
-            </span>
           </div>
         </div>
       </div>
@@ -374,8 +351,43 @@ export default {
   transform: scale(0.99);
 }
 
+.poem-card-clickable:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .rating-btn {
+  min-height: 96px;
+  padding: 13px 5px;
   transition: all 0.2s ease;
+}
+
+.rating-retry {
+  color: #704a1f;
+  background: #f6ead8;
+  border: 1px solid #d7b77f;
+}
+
+.rating-normal {
+  color: #fff;
+  background: var(--color-brand);
+  box-shadow: 0 5px 14px rgba(39, 74, 120, 0.2);
+}
+
+.rating-mastered {
+  color: var(--color-success-dark);
+  background: transparent;
+  border: 1px solid var(--color-success);
+}
+
+.rating-icon {
+  font-size: 1.25rem;
+}
+
+.rating-title {
+  margin-top: 2px;
+  font-size: 0.94rem;
+  font-weight: 700;
 }
 
 .rating-btn:not(:disabled):hover {
@@ -388,9 +400,23 @@ export default {
 }
 
 .rating-effect {
-  font-size: 0.72rem;
-  opacity: 0.9;
+  margin-top: 3px;
+  font-size: 0.78rem;
   white-space: nowrap;
+}
+
+.schedule-row {
+  display: flex;
+  min-height: 42px;
+  margin-left: 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.schedule-row:last-child {
+  border-bottom: 0;
 }
 
 .review-status-card {
@@ -402,7 +428,7 @@ export default {
 }
 
 .review-status-title {
-  color: #4c7d6c;
+  color: var(--color-success-dark);
   font-weight: 700;
 }
 
@@ -431,5 +457,21 @@ export default {
   border: 1px solid #274a78;
   background: transparent;
   padding: 5px 12px;
+}
+
+@media (max-width: 380px) {
+  .rating-effect {
+    font-size: 0.72rem;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .schedule-row {
+    margin-left: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0;
+  }
 }
 </style>

@@ -1,8 +1,8 @@
 <template>
   <div class="container py-4">
-    <div class="text-center mb-5" style="animation: fadeInDown 0.8s ease;">
-      <h1 class="mb-1" style="color: #2c3e50; font-size: 2.5rem; font-weight: 800; font-family: 'ZCOOL XiaoWei', serif; letter-spacing: 4px;">古诗词背诵</h1>
-      <p style="color: #785448; font-family: 'Long Cang', cursive; font-size: 1.35rem; margin-top: 5px;">温故而知新，可以为师矣</p>
+    <header class="app-hero text-center">
+      <h1 class="app-title">古诗词背诵</h1>
+      <p class="app-subtitle">温故而知新，可以为师矣</p>
       <div class="d-flex justify-content-center align-items-center mt-3" style="gap: 10px; flex-wrap: wrap;">
         <div class="person-switcher">
           <span style="color: #785448; font-size: 0.85rem; margin-right: 6px;">当前：</span>
@@ -21,14 +21,13 @@
           ⚙️ 设置
         </button>
       </div>
-    </div>
+    </header>
 
     <!-- 今日待复习 -->
-    <div class="card">
+    <div class="card today-card" :class="{ 'is-clear': todayPending.length === 0 }">
       <button
         type="button"
         class="card-header collapsible-header"
-        style="background: #c8392f; color: #fff6e5;"
         :aria-expanded="!collapsed.today"
         @click="toggleCollapse('today')"
       >
@@ -38,15 +37,29 @@
         </h5>
       </button>
       <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.today }">
-        <div v-if="todayPending.length === 0" class="text-center py-4 text-muted">
-          今天没有待复习任务，休息一下吧 ✨
+        <div v-if="todayPending.length === 0" class="empty-state">
+          <span class="empty-state-icon">✓</span>
+          <strong>今日任务已完成</strong>
+          <span>可以自由学习新诗，或者来一组轻量测验。</span>
         </div>
-        <div v-else class="list-group list-group-flush">
+        <div v-else>
+          <div class="today-summary">
+            <div>
+              <strong>今天有 {{ todayPending.length }} 首待复习</strong>
+              <span>预计 {{ Math.max(2, Math.ceil(todayPending.length * 0.8)) }} 分钟</span>
+            </div>
+            <button class="btn primary-action" @click.stop="startTodayReview">开始复习</button>
+          </div>
+          <div class="list-group list-group-flush">
           <div
             v-for="item in todayPending"
             :key="item.poemId + '-' + item.days"
             class="list-group-item poem-card"
+            role="button"
+            tabindex="0"
             @click="goToPoem(item.poemId)"
+            @keydown.enter="goToPoem(item.poemId)"
+            @keydown.space.prevent="goToPoem(item.poemId)"
           >
             <div class="d-flex justify-content-between align-items-center">
               <div>
@@ -58,29 +71,35 @@
               </span>
             </div>
           </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="row g-3 mb-4">
-      <div v-for="grade in 8" :key="grade" class="col-4">
+    <div class="section-heading">
+      <div>
+        <h2>按年级学习</h2>
+        <p>选择课本范围，学习或查看进度</p>
+      </div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div v-for="grade in 8" :key="grade" class="col-6">
         <button
           class="btn btn-grade"
-          :class="'btn-grade-' + grade"
           @click="goToGrade(grade)"
         >
-          {{ getGradeName(grade) }}
+          <span>{{ getGradeName(grade) }}</span>
+          <small>{{ getGradePoemCount(grade) }} 首</small>
         </button>
       </div>
     </div>
 
     <div class="text-center mb-4">
       <button
-        class="btn"
-        style="background: #522c5e; color: #fff6e5; border: none; box-shadow: 0 4px 15px rgba(82, 44, 94, 0.2); font-family: 'ZCOOL XiaoWei', serif; font-size: 1.15rem; padding: 12px 36px; letter-spacing: 2px;"
+        class="btn secondary-action"
         @click="goToQuiz"
       >
-        📝 随机测验
+        📝 开始专项测验
       </button>
     </div>
 
@@ -88,8 +107,7 @@
     <div class="card mt-3">
       <button
         type="button"
-        class="card-header collapsible-header"
-        style="background: #274a78; color: #fff6e5;"
+        class="card-header collapsible-header history-header"
         :aria-expanded="!collapsed.history"
         @click="toggleCollapse('history')"
       >
@@ -117,7 +135,11 @@
                 v-for="item in group"
                 :key="item.poemId + '-' + (item.days || 'initial')"
                 class="list-group-item poem-card"
+                role="button"
+                tabindex="0"
                 @click="goToPoem(item.poemId)"
+                @keydown.enter="goToPoem(item.poemId)"
+                @keydown.space.prevent="goToPoem(item.poemId)"
               >
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
@@ -139,8 +161,7 @@
     <div class="card mt-3">
       <button
         type="button"
-        class="card-header collapsible-header"
-        style="background: #4c7d6c; color: #fff6e5;"
+        class="card-header collapsible-header future-header"
         :aria-expanded="!collapsed.future"
         @click="toggleCollapse('future')"
       >
@@ -167,7 +188,11 @@
                 v-for="item in group.items"
                 :key="item.poemId + '-' + item.days"
                 class="list-group-item poem-card"
+                role="button"
+                tabindex="0"
                 @click="goToPoem(item.poemId)"
+                @keydown.enter="goToPoem(item.poemId)"
+                @keydown.space.prevent="goToPoem(item.poemId)"
               >
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
@@ -245,6 +270,9 @@ export default {
       if (grade === 7) return '附加一'
       if (grade === 8) return '附加二'
       return grade + '年级'
+    },
+    getGradePoemCount(grade) {
+      return this.poems[grade]?.length || 0
     },
     toggleCollapse(section) {
       this.collapsed[section] = !this.collapsed[section]
@@ -339,6 +367,11 @@ export default {
     goToGrade(grade) {
       this.$router.push({ name: 'PoemList', params: { grade } })
     },
+    startTodayReview() {
+      if (this.todayPending.length > 0) {
+        this.goToPoem(this.todayPending[0].poemId)
+      }
+    },
     goToSettings() {
       this.$router.push({ name: 'Settings' })
     },
@@ -406,6 +439,143 @@ export default {
 </script>
 
 <style scoped>
+.app-hero {
+  margin-bottom: 24px;
+}
+
+.app-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: clamp(2rem, 8vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+
+.app-subtitle {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-family: 'Long Cang', cursive;
+  font-size: 1.25rem;
+}
+
+.today-card .collapsible-header {
+  color: #fff;
+  background: var(--color-danger);
+}
+
+.today-card.is-clear .collapsible-header {
+  background: var(--color-success);
+}
+
+.history-header {
+  color: #fff;
+  background: var(--color-brand);
+}
+
+.future-header {
+  color: #fff;
+  background: var(--color-success);
+}
+
+.today-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--color-danger-soft);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.today-summary strong,
+.today-summary span {
+  display: block;
+}
+
+.today-summary span {
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.primary-action {
+  flex: none;
+  min-height: 44px;
+  color: #fff;
+  background: var(--color-brand);
+}
+
+.empty-state {
+  display: flex;
+  padding: 24px 20px;
+  align-items: center;
+  flex-direction: column;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.empty-state strong {
+  margin: 8px 0 4px;
+  color: var(--color-text);
+}
+
+.empty-state-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--color-success);
+  border-radius: 50%;
+  font-weight: 800;
+}
+
+.section-heading {
+  margin: 28px 2px 12px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.2rem;
+}
+
+.section-heading p {
+  margin: 3px 0 0;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.btn-grade {
+  height: 68px;
+  margin: 0;
+  padding: 10px 14px;
+  align-items: flex-start;
+  flex-direction: column;
+  color: var(--color-brand) !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  font-size: 1.08rem;
+  letter-spacing: 1px;
+  text-shadow: none;
+}
+
+.btn-grade small {
+  color: var(--color-muted);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+}
+
+.secondary-action {
+  min-height: 46px;
+  color: var(--color-brand);
+  background: var(--color-brand-soft);
+  border: 1px solid rgba(39, 74, 120, 0.18);
+}
+
 .collapsible-header {
   display: block;
   width: 100%;
@@ -481,5 +651,21 @@ export default {
   color: #fff6e5;
   border-color: #522c5e;
   box-shadow: 0 2px 8px rgba(82, 44, 94, 0.25);
+}
+
+.poem-card[role="button"]:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+@media (max-width: 380px) {
+  .today-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .primary-action {
+    width: 100%;
+  }
 }
 </style>

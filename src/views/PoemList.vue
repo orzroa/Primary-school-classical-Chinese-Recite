@@ -12,15 +12,22 @@
         v-for="(poem, index) in poems"
         :key="poem.id"
         class="col-12"
-        :style="{ animation: `fadeInUp 0.6s ease ${index * 0.05}s both` }"
+        :style="index < 6 ? { animation: `fadeInUp 0.45s ease ${index * 0.04}s both` } : null"
       >
-        <div class="card poem-card" @click="goToPoem(poem.id)" style="padding: 10px 16px;">
+        <div
+          class="card poem-card poem-list-item"
+          role="button"
+          tabindex="0"
+          @click="goToPoem(poem.id)"
+          @keydown.enter="goToPoem(poem.id)"
+          @keydown.space.prevent="goToPoem(poem.id)"
+        >
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h5 class="card-title mb-1" style="font-weight: 700; color: #2c3e50; letter-spacing: 0.5px;">
-                <span style="color: #b07a3e; font-size: 0.85rem; margin-right: 6px;">第 {{ poem.order }} 首</span>{{ poem.title }}
+                <span style="color: var(--color-warning); font-size: 0.85rem; margin-right: 6px;">第 {{ poem.order }} 首</span>{{ poem.title }}
               </h5>
-              <p class="card-text" style="color: #7a8a9a; margin: 0; font-weight: 500;">{{ poem.author }}</p>
+              <p class="card-text" style="color: var(--color-muted); margin: 0; font-weight: 500;">{{ poem.author }}</p>
             </div>
             <span class="badge" :class="poemBadgeClass(poem.id)">
               {{ poemStatus(poem.id) }}
@@ -97,3 +104,25 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.poem-list-item {
+  min-height: 72px;
+  margin-bottom: 10px;
+  padding: 12px 16px;
+}
+
+.poem-list-item:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 380px) {
+  .poem-list-item .badge {
+    max-width: 112px;
+    white-space: normal;
+    line-height: 1.35;
+    text-align: center;
+  }
+}
+</style>

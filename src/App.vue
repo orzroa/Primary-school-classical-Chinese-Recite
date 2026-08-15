@@ -66,15 +66,38 @@ export default {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Long+Cang&family=Noto+Serif+SC:wght@500;700;900&family=ZCOOL+XiaoWei&display=swap');
 
+:root {
+  --color-brand: #274a78;
+  --color-brand-dark: #1c3557;
+  --color-brand-soft: #e8edf3;
+  --color-success: #3f6a5a;
+  --color-success-dark: #315447;
+  --color-success-soft: #e7f0ec;
+  --color-warning: #8c5f2e;
+  --color-danger: #b8322a;
+  --color-danger-soft: #f8e9e6;
+  --color-text: #26384a;
+  --color-muted: #6f665a;
+  --color-surface: #fffdf8;
+  --color-surface-muted: #f7f3ea;
+  --color-canvas: #f4f0e7;
+  --color-border: #ddd6c9;
+  --color-border-subtle: #ebe5da;
+  --color-focus: #2e6b8a;
+  --font-body: 'Noto Serif SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --shadow-sm: 0 3px 12px rgba(44, 62, 80, 0.07);
+  --shadow-md: 0 8px 24px rgba(76, 68, 55, 0.08);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
-  background-color: #f6f3eb;
+  background-color: var(--color-canvas);
   min-height: 100vh;
-  color: #2c3e50;
-  font-family: 'Noto Serif SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--color-text);
+  font-family: var(--font-body);
   margin: 0;
 }
 
@@ -99,9 +122,11 @@ body {
   justify-content: center;
 }
 
-.btn-grade:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(44, 62, 80, 0.18);
+@media (hover: hover) {
+  .btn-grade:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(44, 62, 80, 0.13);
+  }
 }
 
 .btn-grade:active {
@@ -169,10 +194,12 @@ body {
   overflow: hidden;
 }
 
-.poem-card:hover {
-  transform: translateX(4px);
-  box-shadow: 0 8px 20px rgba(44, 62, 80, 0.08);
-  border-color: #4c7d6c;
+@media (hover: hover) {
+  .poem-card:hover {
+    transform: translateX(3px);
+    box-shadow: 0 8px 20px rgba(44, 62, 80, 0.08);
+    border-color: var(--color-success);
+  }
 }
 
 .poem-content {
@@ -214,8 +241,8 @@ body {
 .card {
   border: 1px solid rgba(44, 62, 80, 0.08) !important;
   border-radius: 12px !important;
-  box-shadow: 0 8px 24px rgba(76, 68, 55, 0.06) !important;
-  background: #fdfdfb !important;
+  box-shadow: var(--shadow-md) !important;
+  background: var(--color-surface) !important;
   margin-bottom: 24px;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -262,7 +289,7 @@ body {
 }
 
 .bg-success {
-  background-color: #4c7d6c !important;
+  background-color: var(--color-success) !important;
   color: #fff6e5 !important;
 }
 
@@ -272,7 +299,7 @@ body {
 }
 
 .bg-info {
-  background-color: #b07a3e !important;
+  background-color: var(--color-warning) !important;
   color: #fff6e5 !important;
 }
 
@@ -309,12 +336,19 @@ h1, h2, h3, h4, h5 {
 }
 
 .text-muted {
-  color: #8c7e6c !important;
+  color: var(--color-muted) !important;
 }
 
 .container {
-  padding: 20px 16px;
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   max-width: 600px;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 @keyframes fadeInUp {
@@ -328,6 +362,16 @@ h1, h2, h3, h4, h5 {
   }
 }
 
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
 .list-group-item {
   animation: fadeInUp 0.4s ease forwards;
   opacity: 0;
@@ -338,5 +382,17 @@ h1, h2, h3, h4, h5 {
 .list-group-item:nth-child(3) { animation-delay: 0.12s; }
 .list-group-item:nth-child(4) { animation-delay: 0.16s; }
 .list-group-item:nth-child(5) { animation-delay: 0.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 </style>

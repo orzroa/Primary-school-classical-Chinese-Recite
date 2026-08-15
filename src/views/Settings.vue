@@ -24,13 +24,26 @@
             class="list-group-item d-flex justify-content-between align-items-center"
             :class="{ 'active-person': p.id === currentPerson.id }"
           >
-            <div>
-              <strong>{{ p.name }}</strong>
+            <div class="person-info">
+              <div v-if="editingPersonId === p.id" class="inline-edit">
+                <input v-model="editingName" class="form-control form-control-sm" maxlength="20" @keyup.enter="saveRename(p)" />
+              </div>
+              <strong v-else>{{ p.name }}</strong>
               <span v-if="p.id === currentPerson.id" class="badge ms-2" style="background: #522c5e; color: #fff6e5;">当前</span>
               <span v-if="p.isDefault" class="badge ms-2 bg-secondary">默认</span>
               <div class="text-muted small">已学 {{ statsMap[p.id] || 0 }} 首</div>
             </div>
             <div class="d-flex" style="gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+              <template v-if="editingPersonId === p.id">
+                <button class="btn btn-sm btn-primary" @click="saveRename(p)">保存</button>
+                <button class="btn btn-sm btn-quiet" @click="cancelRename">取消</button>
+              </template>
+              <template v-else-if="pendingDeleteId === p.id">
+                <span class="delete-question">确认删除？</span>
+                <button class="btn btn-sm btn-danger" @click="confirmDelete(p)">确认</button>
+                <button class="btn btn-sm btn-quiet" @click="pendingDeleteId = null">取消</button>
+              </template>
+              <template v-else>
               <button
                 v-if="p.id !== currentPerson.id"
                 class="btn btn-sm"
@@ -40,7 +53,7 @@
               <button
                 class="btn btn-sm"
                 style="background: #f6f3eb; color: #785448; border: 1px solid #785448;"
-                @click="renamePerson(p)"
+                @click="startRename(p)"
               >重命名</button>
               <button
                 v-if="!p.isDefault"
@@ -48,6 +61,7 @@
                 style="background: #c8392f; color: #fff6e5;"
                 @click="deletePerson(p)"
               >删除</button>
+              </template>
             </div>
           </div>
         </div>
@@ -89,7 +103,7 @@
     </div>
 
     <div class="card" style="animation: fadeInUp 0.6s ease 0.2s both;">
-      <div class="card-header" style="background: #4c7d6c; color: #fff6e5;">
+      <div class="card-header" style="background: var(--color-success); color: #fff;">
         <h5 class="mb-0"><span class="me-2">📥</span> 导入进度</h5>
       </div>
       <div class="card-body">
@@ -132,10 +146,13 @@ export default {
       newPersonName: '',
       learnedCount: 0,
       message: '',
-      messageClass: ''
+      messageClass: '',
+      editingPersonId: null,
+      editingName: '',
+      pendingDeleteId: null
     }
   },
-  mounted() {
+  created() {
     this.refreshPersons()
   },
   methods: {
@@ -161,24 +178,34 @@ export default {
         this.showMessage(`已添加人员：${p.name}`, 'alert-success')
       }
     },
-    renamePerson(person) {
-      const newName = prompt('修改人员名称', person.name)
-      if (newName === null) return
-      const trimmed = newName.trim()
+    startRename(person) {
+      this.pendingDeleteId = null
+      this.editingPersonId = person.id
+      this.editingName = person.name
+    },
+    cancelRename() {
+      this.editingPersonId = null
+      this.editingName = ''
+    },
+    saveRename(person) {
+      const trimmed = this.editingName.trim()
       if (!trimmed) {
         this.showMessage('名称不能为空', 'alert-danger')
         return
       }
       if (storage.updatePersonName(person.id, trimmed)) {
+        this.cancelRename()
         this.refreshPersons()
         this.showMessage('已更新', 'alert-success')
       }
     },
     deletePerson(person) {
-      if (!confirm(`确定要删除「${person.name}」及其所有学习记录吗？此操作不可撤销。`)) {
-        return
-      }
+      this.editingPersonId = null
+      this.pendingDeleteId = person.id
+    },
+    confirmDelete(person) {
       if (storage.deletePerson(person.id)) {
+        this.pendingDeleteId = null
         this.refreshPersons()
         this.showMessage(`已删除：${person.name}`, 'alert-success')
       }
@@ -302,7 +329,7 @@ export default {
 }
 
 .btn-success {
-  background: linear-gradient(135deg, #4c7d6c 0%, #375c4f 100%);
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-dark) 100%);
   border: none;
   color: #fff6e5;
   font-weight: 600;
@@ -323,5 +350,31 @@ export default {
 
 .list-group-item {
   border-color: #e5dfd3;
+}
+
+.person-info {
+  min-width: 120px;
+}
+
+.inline-edit {
+  max-width: 160px;
+}
+
+.btn-quiet {
+  color: var(--color-muted);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+}
+
+.btn-danger {
+  color: #fff;
+  background: var(--color-danger);
+}
+
+.delete-question {
+  align-self: center;
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 </style>
