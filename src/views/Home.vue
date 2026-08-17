@@ -555,9 +555,8 @@ export default {
 }
 
 .btn-grade {
-  height: 68px;
   margin: 0;
-  padding: 10px 14px;
+  padding: 14px;
   align-items: flex-start;
   flex-direction: column;
   color: var(--color-brand) !important;
@@ -574,6 +573,7 @@ export default {
   font-family: var(--font-body);
   font-size: 0.78rem;
   letter-spacing: 0;
+  line-height: 1.2;
 }
 
 .secondary-action {
@@ -733,12 +733,12 @@ export default {
 .course-heading { margin: 32px 4px 14px; }
 .course-heading h2 { color: #78451f; font-size: 1.35rem; }
 .grade-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.btn-grade { position: relative; height: 132px; padding: 14px !important; justify-content: space-between; align-items: flex-start; border: 3px solid white !important; border-radius: 23px !important; box-shadow: 0 0 0 3px #f3dab0, 0 8px 0 #e9c98e !important; overflow: hidden; }
+.btn-grade { position: relative; height: 150px !important; padding: 14px !important; justify-content: space-between; align-items: flex-start; border: 3px solid white !important; border-radius: 23px !important; box-shadow: 0 0 0 3px #f3dab0, 0 8px 0 #e9c98e !important; }
 .btn-grade::after { content: ''; position: absolute; width: 95px; height: 95px; right: -28px; top: -28px; border-radius: 50%; background: #ffffff55; }
 .grade-illustration { position: relative; z-index: 1; font-size: 2.4rem; filter: drop-shadow(0 4px 2px #7150222e); }
-.grade-copy { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; }
-.grade-copy strong { color: #255d9d; font-size: 1.1rem; }
-.btn-grade small { color: #755a43; }
+.grade-copy { position: absolute; z-index: 1; bottom: 14px; left: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.grade-copy strong { color: #255d9d; font-size: 1.1rem; line-height: 1.2; }
+.btn-grade small { color: #755a43 !important; line-height: 1.2; }
 .grade-arrow { position: absolute; right: 13px; bottom: 10px; color: #fff; font: 900 1.5rem sans-serif; }
 .grade-tone-1, .grade-tone-5 { background: linear-gradient(145deg, #c9efff, #8bd6f6) !important; }
 .grade-tone-2, .grade-tone-6 { background: linear-gradient(145deg, #dcf5aa, #a8dc67) !important; }
@@ -772,7 +772,10 @@ export default {
   .board-toolbar { align-items: flex-start; }.person-switcher { padding: 3px 6px; }.person-switcher > span { display: none; }
   .person-chip { min-height: 34px; padding: 6px 10px; }.settings-button span { display: none; }
   .grade-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .btn-grade { height: 115px; }
+  .btn-grade { height: 150px !important; }
+  .grade-illustration { font-size: 2.25rem; }
+  .grade-copy strong { font-size: 1.12rem; }
+  .grade-copy small { font-size: .76rem; }
   .quiz-banner { align-items: stretch; flex-direction: column; }
   .secondary-action { width: 100%; }
 }
