@@ -1,9 +1,15 @@
 <template>
-  <div class="container py-4">
-    <header class="app-hero text-center">
-      <h1 class="app-title">古诗词背诵</h1>
-      <p class="app-subtitle">温故而知新，可以为师矣</p>
-      <div class="d-flex justify-content-center align-items-center mt-3" style="gap: 10px; flex-wrap: wrap;">
+  <div class="home-shell">
+    <header class="app-hero">
+      <div class="brand-block">
+        <div class="mascot" aria-hidden="true"><span>诗</span></div>
+        <div><p class="eyebrow">我的学习</p><h1 class="app-title">古诗小课堂</h1></div>
+      </div>
+      <div class="streak-card"><span class="streak-fire">🔥</span><span>连续学习</span><strong>5</strong><span>天</span></div>
+      <div class="star-score" aria-label="获得星星 123 颗"><span>⭐</span><strong>123</strong></div>
+    </header>
+    <main class="learning-board">
+      <div class="board-toolbar">
         <div class="person-switcher">
           <span style="color: #785448; font-size: 0.85rem; margin-right: 6px;">当前：</span>
           <button
@@ -17,11 +23,8 @@
             {{ p.name }}
           </button>
         </div>
-        <button class="btn btn-sm" style="background: #f6f3eb; color: #785448; border: 1px solid #785448; font-size: 0.85rem;" @click="goToSettings">
-          ⚙️ 设置
-        </button>
+        <button class="settings-button" @click="goToSettings">⚙️ <span>设置</span></button>
       </div>
-    </header>
 
     <!-- 今日待复习 -->
     <div class="card today-card" :class="{ 'is-clear': todayPending.length === 0 }">
@@ -32,15 +35,15 @@
         @click="toggleCollapse('today')"
       >
         <h5 class="mb-0 d-flex justify-content-between align-items-center">
-          <span><span class="me-2">🎯</span> 今日待复习 <span class="header-count">{{ todayPending.length }}</span></span>
+          <span><span class="me-2">📖</span> 今日学习任务 <span class="header-count">{{ todayPending.length }}</span></span>
           <span class="collapse-icon">{{ collapsed.today ? '▼' : '▲' }}</span>
         </h5>
       </button>
       <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.today }">
         <div v-if="todayPending.length === 0" class="empty-state">
-          <span class="empty-state-icon">✓</span>
-          <strong>今日任务已完成</strong>
-          <span>可以自由学习新诗，或者来一组轻量测验。</span>
+          <span class="empty-state-icon">★</span>
+          <strong>太棒啦！今日复习完成</strong>
+          <span>今天的知识都记住了，去认识一首新诗吧！</span>
         </div>
         <div v-else>
           <div class="today-summary">
@@ -48,7 +51,7 @@
               <strong>今天有 {{ todayPending.length }} 首待复习</strong>
               <span>预计 {{ Math.max(2, Math.ceil(todayPending.length * 0.8)) }} 分钟</span>
             </div>
-            <button class="btn primary-action" @click.stop="startTodayReview">开始复习</button>
+            <button class="btn primary-action" @click.stop="startTodayReview">继续学习 →</button>
           </div>
           <div class="list-group list-group-flush">
           <div
@@ -76,35 +79,37 @@
       </div>
     </div>
 
-    <div class="section-heading">
+    <div class="section-heading course-heading">
       <div>
-        <h2>按年级学习</h2>
-        <p>选择课本范围，学习或查看进度</p>
+        <h2><span>📚</span> 我的课程</h2>
+        <p>选择年级，开启今天的诗词之旅</p>
       </div>
     </div>
-    <div class="row g-2 mb-3">
-      <div v-for="grade in 8" :key="grade" class="col-6">
+    <div class="grade-grid">
+      <div v-for="grade in 8" :key="grade">
         <button
-          class="btn btn-grade"
+          class="btn btn-grade" :class="`grade-tone-${grade}`"
           @click="goToGrade(grade)"
         >
-          <span>{{ getGradeName(grade) }}</span>
-          <small>{{ getGradePoemCount(grade) }} 首</small>
+          <span class="grade-illustration">{{ ['🌱','🌳','☀️','🌈','⛰️','🚀','🪐','🏆'][grade - 1] }}</span>
+          <span class="grade-copy"><strong>{{ getGradeName(grade) }}</strong><small>{{ getGradePoemCount(grade) }} 首诗词</small></span>
+          <span class="grade-arrow">›</span>
         </button>
       </div>
     </div>
 
-    <div class="text-center mb-4">
+    <div class="quiz-banner">
+      <div><span class="quiz-kicker">闯关时间</span><strong>看看今天学会了多少？</strong></div>
       <button
         class="btn secondary-action"
         @click="goToQuiz"
       >
-        📝 开始专项测验
+        开始测验 ✨
       </button>
     </div>
 
     <!-- 学习记录（过去和今天的复习计划） -->
-    <div class="card mt-3">
+    <div class="card mt-3 record-card">
       <button
         type="button"
         class="card-header collapsible-header history-header"
@@ -158,7 +163,7 @@
     </div>
 
     <!-- 将来的复习计划 -->
-    <div class="card mt-3">
+    <div class="card mt-3 record-card">
       <button
         type="button"
         class="card-header collapsible-header future-header"
@@ -209,6 +214,8 @@
         </div>
       </div>
     </div>
+    </main>
+    <div class="garden" aria-hidden="true"><span>✿</span><span>●</span><span>✿</span><span>●</span></div>
   </div>
 </template>
 
@@ -667,5 +674,106 @@ export default {
   .primary-action {
     width: 100%;
   }
+}
+
+/* 童趣学习面板 */
+.home-shell {
+  position: relative;
+  width: min(1120px, calc(100% - 24px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: max(22px, env(safe-area-inset-top)) 0 90px;
+}
+
+.app-hero {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 22px;
+  margin: 0 22px 18px;
+}
+
+.brand-block { display: flex; align-items: center; gap: 14px; }
+.mascot {
+  display: grid; width: 68px; height: 68px; place-items: center;
+  color: white; background: linear-gradient(145deg, #ffb32e, #ff742e);
+  border: 6px solid white; border-radius: 50%; box-shadow: 0 5px 0 #cde9fb, 0 10px 22px #177cc333;
+}
+.mascot span { font: 900 30px 'ZCOOL XiaoWei', serif; transform: rotate(-7deg); }
+.eyebrow { margin: 0 0 1px; color: #4d98ca; font-size: .76rem; font-weight: 900; letter-spacing: 3px; }
+.app-title { color: #1761aa; font-size: clamp(1.7rem, 4vw, 2.45rem); text-shadow: 0 3px 0 #fff; }
+.streak-card, .star-score {
+  display: flex; min-height: 58px; align-items: center; gap: 9px; padding: 9px 20px;
+  color: #135ca5; background: #fffdf7; border: 3px solid #f6deb0; border-radius: 24px;
+  box-shadow: 0 7px 15px #c58b2c1c; font-weight: 900;
+}
+.streak-card strong { color: #ff5b22; font-size: 2rem; line-height: 1; }
+.streak-fire { font-size: 2rem; }
+.star-score { min-width: 150px; justify-content: center; background: linear-gradient(90deg, #fff, #dff2ff); border-color: white; box-shadow: 0 0 0 3px #f5dfb9, 0 8px 18px #b78a3d26; }
+.star-score span { font-size: 2.3rem; filter: drop-shadow(0 3px 0 #f3a800); }
+.star-score strong { font-size: 1.65rem; }
+
+.learning-board {
+  position: relative; padding: 22px; background: rgba(255,248,224,.9);
+  border: 1px solid #f3dcaa; border-radius: 32px; box-shadow: 0 14px 40px #b47b2520;
+}
+.board-toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.person-switcher { background: #fff; border: 2px solid #f2dcae; }
+.person-chip.active { background: #168fe1; border-color: #168fe1; box-shadow: 0 3px 0 #0864bd; }
+.settings-button { padding: 9px 16px; color: #80572f; background: #fff; border: 2px solid #f2dcae; border-radius: 18px; font-weight: 800; }
+
+.today-card { border: 4px solid #ffc239 !important; border-radius: 28px !important; box-shadow: 0 9px 0 #e8af2f, 0 18px 32px #bf8c3030 !important; }
+.today-card .collapsible-header, .today-card.is-clear .collapsible-header { color: #6f411e; background: linear-gradient(90deg, #fff2b9, #fff9e8); }
+.card-header { padding: 17px 22px; }
+.empty-state { min-height: 155px; justify-content: center; background: radial-gradient(circle at 50% 20%, #fff 0, #fffdf9 60%, #fff8df 100%); }
+.empty-state strong { color: #f26622; font-size: clamp(1.25rem, 3vw, 1.7rem); }
+.empty-state-icon { width: 54px; height: 54px; color: #fff; background: linear-gradient(#ffe05b, #ffb800); border: 4px solid #fff2ae; box-shadow: 0 4px 0 #e99a00; font-size: 1.5rem; }
+.primary-action { background: linear-gradient(#7edc43, #55bb29); border-radius: 16px; box-shadow: 0 5px 0 #369b1c; }
+
+.course-heading { margin: 32px 4px 14px; }
+.course-heading h2 { color: #78451f; font-size: 1.35rem; }
+.grade-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.btn-grade { position: relative; height: 132px; padding: 14px !important; justify-content: space-between; align-items: flex-start; border: 3px solid white !important; border-radius: 23px !important; box-shadow: 0 0 0 3px #f3dab0, 0 8px 0 #e9c98e !important; overflow: hidden; }
+.btn-grade::after { content: ''; position: absolute; width: 95px; height: 95px; right: -28px; top: -28px; border-radius: 50%; background: #ffffff55; }
+.grade-illustration { position: relative; z-index: 1; font-size: 2.4rem; filter: drop-shadow(0 4px 2px #7150222e); }
+.grade-copy { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; }
+.grade-copy strong { color: #255d9d; font-size: 1.1rem; }
+.btn-grade small { color: #755a43; }
+.grade-arrow { position: absolute; right: 13px; bottom: 10px; color: #fff; font: 900 1.5rem sans-serif; }
+.grade-tone-1, .grade-tone-5 { background: linear-gradient(145deg, #c9efff, #8bd6f6) !important; }
+.grade-tone-2, .grade-tone-6 { background: linear-gradient(145deg, #dcf5aa, #a8dc67) !important; }
+.grade-tone-3, .grade-tone-7 { background: linear-gradient(145deg, #ffe69b, #ffc853) !important; }
+.grade-tone-4, .grade-tone-8 { background: linear-gradient(145deg, #e8d1ff, #c59af0) !important; }
+
+.quiz-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 26px 0; padding: 18px 22px; color: #fff; background: linear-gradient(135deg, #2ea6f4, #1476dd); border: 4px solid #fff; border-radius: 24px; box-shadow: 0 7px 0 #0864bd, 0 11px 22px #156fbd3d; }
+.quiz-banner div { display: flex; flex-direction: column; }
+.quiz-banner strong { font-size: 1.1rem; }
+.quiz-kicker { color: #dff5ff; font-size: .76rem; font-weight: 900; letter-spacing: 2px; }
+.secondary-action { min-width: 150px; color: #1467b8; background: white; border-radius: 15px; box-shadow: 0 4px 0 #b9dbf3; }
+.record-card { border: 2px solid #eed8b0 !important; border-radius: 22px !important; box-shadow: 0 6px 18px #96692317 !important; }
+.history-header, .future-header { color: #70431f; background: #fff7df; }
+.garden { position: absolute; z-index: -1; right: -18px; bottom: 16px; left: -18px; display: flex; justify-content: space-around; align-items: end; height: 78px; color: #ff8c3d; background: linear-gradient(165deg, transparent 0 45%, #a9dc58 46% 65%, #45b888 66%); font-size: 1.7rem; }
+.garden span:nth-child(even) { color: #ffcf3b; font-size: 1rem; }
+
+@media (max-width: 760px) {
+  .home-shell { width: min(100% - 18px, 620px); padding-top: 18px; }
+  .app-hero { grid-template-columns: 1fr auto; gap: 10px; margin: 0 6px 14px; }
+  .brand-block { gap: 9px; }
+  .mascot { width: 54px; height: 54px; border-width: 4px; }
+  .mascot span { font-size: 24px; }
+  .eyebrow { font-size: .66rem; }
+  .app-title { font-size: 1.55rem; letter-spacing: 2px; }
+  .streak-card { grid-column: 1 / -1; grid-row: 2; justify-self: center; min-height: 45px; padding: 6px 15px; border-radius: 18px; }
+  .streak-card strong { font-size: 1.55rem; }
+  .streak-fire { font-size: 1.5rem; }
+  .star-score { min-width: 105px; min-height: 48px; padding: 5px 10px; }
+  .star-score span { font-size: 1.7rem; }.star-score strong { font-size: 1.25rem; }
+  .learning-board { padding: 13px; border-radius: 25px; }
+  .board-toolbar { align-items: flex-start; }.person-switcher { padding: 3px 6px; }.person-switcher > span { display: none; }
+  .person-chip { min-height: 34px; padding: 6px 10px; }.settings-button span { display: none; }
+  .grade-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .btn-grade { height: 115px; }
+  .quiz-banner { align-items: stretch; flex-direction: column; }
+  .secondary-action { width: 100%; }
 }
 </style>

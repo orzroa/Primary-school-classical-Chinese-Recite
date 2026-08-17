@@ -67,24 +67,24 @@ export default {
 @import url('https://fonts.googleapis.com/css2?family=Long+Cang&family=Noto+Serif+SC:wght@500;700;900&family=ZCOOL+XiaoWei&display=swap');
 
 :root {
-  --color-brand: #274a78;
-  --color-brand-dark: #1c3557;
-  --color-brand-soft: #e8edf3;
-  --color-success: #3f6a5a;
+  --color-brand: #168fe1;
+  --color-brand-dark: #0864bd;
+  --color-brand-soft: #e5f5ff;
+  --color-success: #65bf38;
   --color-success-dark: #315447;
   --color-success-soft: #e7f0ec;
-  --color-warning: #8c5f2e;
-  --color-danger: #b8322a;
-  --color-danger-soft: #f8e9e6;
-  --color-text: #26384a;
-  --color-muted: #6f665a;
-  --color-surface: #fffdf8;
+  --color-warning: #ff9f1c;
+  --color-danger: #ff6a3d;
+  --color-danger-soft: #fff2dc;
+  --color-text: #15569a;
+  --color-muted: #80644d;
+  --color-surface: #fffefb;
   --color-surface-muted: #f7f3ea;
-  --color-canvas: #f4f0e7;
-  --color-border: #ddd6c9;
+  --color-canvas: #fff7df;
+  --color-border: #f4dba7;
   --color-border-subtle: #ebe5da;
   --color-focus: #2e6b8a;
-  --font-body: 'Noto Serif SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Noto Serif SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
   --shadow-sm: 0 3px 12px rgba(44, 62, 80, 0.07);
   --shadow-md: 0 8px 24px rgba(76, 68, 55, 0.08);
 }
@@ -94,8 +94,9 @@ export default {
 }
 
 body {
-  background-color: var(--color-canvas);
+  background: linear-gradient(180deg, #0d8dde 0 9px, #fffaf0 9px, #fff3cf 100%);
   min-height: 100vh;
+  overflow-x: hidden;
   color: var(--color-text);
   font-family: var(--font-body);
   margin: 0;
