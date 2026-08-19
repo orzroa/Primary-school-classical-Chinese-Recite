@@ -5,8 +5,15 @@
         <div class="mascot" aria-hidden="true"><span>诗</span></div>
         <div><p class="eyebrow">我的学习</p><h1 class="app-title">古诗小课堂</h1></div>
       </div>
-      <div class="streak-card"><span class="streak-fire">🔥</span><span>连续学习</span><strong>5</strong><span>天</span></div>
-      <div class="star-score" aria-label="获得星星 123 颗"><span>⭐</span><strong>123</strong></div>
+      <div class="streak-card"><span class="streak-fire">🔥</span><span>连续学习</span><strong>{{ rewardStats.streakDays }}</strong><span>天</span></div>
+      <button
+        type="button"
+        class="star-score"
+        :aria-label="`获得星星 ${rewardStats.totalStars} 颗，查看奖励规则`"
+        @click="showRewards = true"
+      >
+        <span class="star-icon">⭐</span><strong>{{ rewardStats.totalStars }}</strong>
+      </button>
     </header>
     <main class="learning-board">
       <div class="board-toolbar">
@@ -162,6 +169,62 @@
       </div>
     </div>
 
+    <!-- 测验记录 -->
+    <div class="card mt-3 record-card">
+      <button
+        type="button"
+        class="card-header collapsible-header quiz-history-header"
+        :aria-expanded="!collapsed.quiz"
+        @click="toggleCollapse('quiz')"
+      >
+        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+          <span><span class="me-2">🎯</span> 测验记录 <span class="header-count">{{ quizHistoryTotal }}</span></span>
+          <span class="collapse-icon">{{ collapsed.quiz ? '▼' : '▲' }}</span>
+        </h5>
+      </button>
+      <div class="card-body p-0 collapse-body" :class="{ 'collapsed': collapsed.quiz }">
+        <div v-if="Object.keys(groupedQuizHistory).length === 0" class="text-center py-4 text-muted">
+          暂无测验记录，去闯个关吧！
+        </div>
+        <div v-else>
+          <div
+            v-for="(group, date) in groupedQuizHistory"
+            :key="date"
+            class="mb-3"
+          >
+            <div class="bg-light px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+              <strong>{{ formatDate(date) }}</strong>
+              <span class="quiz-day-summary text-muted">
+                {{ summarizeQuizDay(group) }}
+              </span>
+            </div>
+            <div class="list-group list-group-flush">
+              <div
+                v-for="(item, idx) in group"
+                :key="idx"
+                class="list-group-item poem-card"
+                role="button"
+                tabindex="0"
+                @click="goToPoem(item.poemId)"
+                @keydown.enter="goToPoem(item.poemId)"
+                @keydown.space.prevent="goToPoem(item.poemId)"
+              >
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>{{ getPoemTitle(item.poemId) }}</strong>
+                    <div class="text-muted small">{{ getPoemAuthor(item.poemId) }}</div>
+                  </div>
+                  <span class="badge" :class="getQuizRatingBadgeClass(item.rating)">
+                    {{ getQuizRatingText(item.rating) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 将来的复习计划 -->
     <div class="card mt-3 record-card">
       <button
@@ -215,6 +278,46 @@
       </div>
     </div>
     </main>
+    <div v-if="showRewards" class="reward-overlay" @click.self="showRewards = false">
+      <section class="reward-dialog" role="dialog" aria-modal="true" aria-labelledby="reward-title">
+        <button type="button" class="reward-close" aria-label="关闭奖励说明" @click="showRewards = false">×</button>
+        <div class="reward-hero">
+          <span class="reward-big-star">⭐</span>
+          <div>
+            <small>我的星星</small>
+            <strong id="reward-title">{{ rewardStats.totalStars }} 颗</strong>
+            <span>{{ rewardStats.title }}</span>
+          </div>
+        </div>
+
+        <div class="daily-goal">
+          <div><strong>今天已得 {{ rewardStats.todayStars }} 颗</strong><span>每日小目标 {{ rewardStats.dailyGoal }} 颗</span></div>
+          <div class="reward-progress" aria-hidden="true">
+            <span :style="{ width: `${Math.min(100, rewardStats.todayStars / rewardStats.dailyGoal * 100)}%` }"></span>
+          </div>
+        </div>
+
+        <div class="badge-progress">
+          <span>🏅</span>
+          <div>
+            <strong>每 10 颗点亮一枚成长徽章</strong>
+            <small>再得 {{ rewardStats.nextMilestone - rewardStats.totalStars }} 颗，点亮下一枚</small>
+          </div>
+          <b>{{ rewardStats.milestoneProgress }}/10</b>
+        </div>
+
+        <h3>怎样获得星星？</h3>
+        <div class="reward-rules">
+          <div><span>🌱</span><strong>初学一首</strong><b>+2</b></div>
+          <div><span>⏰</span><strong>按时复习</strong><b>+3</b></div>
+          <div><span>📖</span><strong>补上复习</strong><b>+2</b></div>
+          <div><span>💪</span><strong>有点生，再练练</strong><b>+1</b></div>
+          <div><span>🏆</span><strong>首次掌握</strong><b>+3</b></div>
+          <div><span>✨</span><strong>测验练习</strong><b>+1</b></div>
+        </div>
+        <p class="reward-note">测验同一首诗每天奖励一次，每天最多 5 颗。星星只会鼓励努力，不会因为答错被扣掉。</p>
+      </section>
+    </div>
     <div class="garden" aria-hidden="true"><span>✿</span><span>●</span><span>✿</span><span>●</span></div>
   </div>
 </template>
@@ -234,15 +337,28 @@ export default {
       poems,
       todayPending: [],
       groupedPastHistory: {},
+      groupedQuizHistory: {},
+      quizHistoryTotal: 0,
       futureReviewPlan: [],
       collapsed: {
         today: false,
         history: true,
+        quiz: true,
         future: true
       },
       persons: [],
       currentPerson: null,
-      currentPersonId: ''
+      currentPersonId: '',
+      showRewards: false,
+      rewardStats: {
+        totalStars: 0,
+        todayStars: 0,
+        dailyGoal: 5,
+        streakDays: 0,
+        title: '小小诗芽',
+        nextMilestone: 10,
+        milestoneProgress: 0
+      }
     }
   },
   created() {
@@ -257,6 +373,7 @@ export default {
         const parsed = JSON.parse(saved)
         if (typeof parsed.today === 'boolean') this.collapsed.today = parsed.today
         if (typeof parsed.history === 'boolean') this.collapsed.history = parsed.history
+        if (typeof parsed.quiz === 'boolean') this.collapsed.quiz = parsed.quiz
         if (typeof parsed.future === 'boolean') this.collapsed.future = parsed.future
       }
     } catch (e) {
@@ -293,7 +410,48 @@ export default {
     loadRecords() {
       this.todayPending = storage.getTodayPendingReviews()
       this.groupedPastHistory = this.groupPastHistory()
+      this.groupedQuizHistory = this.groupQuizHistory()
+      this.quizHistoryTotal = Object.values(this.groupedQuizHistory).reduce((sum, list) => sum + list.length, 0)
       this.futureReviewPlan = this.getFutureReviewPlan()
+      this.rewardStats = storage.getRewardStats()
+    },
+    // 测验记录按日期分组（倒序）
+    groupQuizHistory() {
+      const grouped = {}
+      storage.getAllQuizHistory().forEach(item => {
+        if (!grouped[item.date]) grouped[item.date] = []
+        grouped[item.date].push(item)
+      })
+      return Object.fromEntries(
+        Object.entries(grouped).sort(([dateA], [dateB]) => compareDates(dateB, dateA))
+      )
+    },
+    summarizeQuizDay(group) {
+      const counts = { extend: 0, normal: 0, mastered: 0 }
+      group.forEach(item => {
+        if (counts[item.rating] !== undefined) counts[item.rating]++
+      })
+      const parts = []
+      if (counts.mastered) parts.push(`非常熟 ${counts.mastered}`)
+      if (counts.normal) parts.push(`正常 ${counts.normal}`)
+      if (counts.extend) parts.push(`有点生 ${counts.extend}`)
+      return parts.join(' · ')
+    },
+    getQuizRatingBadgeClass(rating) {
+      switch (rating) {
+        case 'mastered': return 'bg-success'
+        case 'normal': return 'bg-primary'
+        case 'extend': return 'bg-warning text-dark'
+        default: return 'bg-secondary'
+      }
+    },
+    getQuizRatingText(rating) {
+      switch (rating) {
+        case 'mastered': return '非常熟 🌟'
+        case 'normal': return '正常 👍'
+        case 'extend': return '有点生 🤔'
+        default: return rating
+      }
     },
     switchPerson(personId) {
       if (personId === this.currentPersonId) return
@@ -710,8 +868,48 @@ export default {
 .streak-card strong { color: #ff5b22; font-size: 2rem; line-height: 1; }
 .streak-fire { font-size: 2rem; }
 .star-score { min-width: 150px; justify-content: center; background: linear-gradient(90deg, #fff, #dff2ff); border-color: white; box-shadow: 0 0 0 3px #f5dfb9, 0 8px 18px #b78a3d26; }
-.star-score span { font-size: 2.3rem; filter: drop-shadow(0 3px 0 #f3a800); }
+.star-score { cursor: pointer; font-family: inherit; }
+.star-score:hover { transform: translateY(-2px); }
+.star-score:focus-visible { outline: 4px solid #168fe1; outline-offset: 4px; }
+.star-score .star-icon { font-size: 2.3rem; filter: drop-shadow(0 3px 0 #f3a800); }
 .star-score strong { font-size: 1.65rem; }
+
+.reward-overlay {
+  position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 18px;
+  background: #164c7778; backdrop-filter: blur(5px);
+}
+.reward-dialog {
+  position: relative; width: min(520px, 100%); max-height: calc(100vh - 36px); overflow-y: auto;
+  padding: 24px; background: #fffdf5; border: 5px solid white; border-radius: 28px;
+  box-shadow: 0 0 0 4px #ffc846, 0 24px 60px #174d7666;
+}
+.reward-close {
+  position: absolute; top: 12px; right: 14px; width: 38px; height: 38px; padding: 0;
+  color: #7b5a37; background: #fff4d6; border: 0; border-radius: 50%; font: 900 1.7rem/1 sans-serif;
+}
+.reward-hero { display: flex; align-items: center; gap: 15px; padding-right: 38px; }
+.reward-big-star { font-size: 4.2rem; filter: drop-shadow(0 5px 0 #f3a800); }
+.reward-hero div { display: flex; flex-direction: column; }
+.reward-hero small { color: #987044; font-weight: 800; }
+.reward-hero strong { color: #ef7c15; font-size: 2rem; line-height: 1.15; }
+.reward-hero div span { color: #1761aa; font-weight: 900; }
+.daily-goal { margin: 20px 0 12px; padding: 14px; background: #e8f7ff; border-radius: 17px; }
+.daily-goal > div:first-child { display: flex; justify-content: space-between; gap: 12px; color: #1761aa; }
+.daily-goal span { color: #638099; font-size: .86rem; }
+.reward-progress { height: 12px; margin-top: 10px; overflow: hidden; background: white; border-radius: 8px; }
+.reward-progress span { display: block; height: 100%; background: linear-gradient(90deg, #65cb3b, #b4e947); border-radius: inherit; }
+.badge-progress { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 13px; background: #fff3c9; border-radius: 17px; }
+.badge-progress > span { font-size: 1.7rem; }
+.badge-progress div { display: flex; flex-direction: column; color: #77511f; }
+.badge-progress small { color: #987044; }
+.badge-progress b { color: #ee7a18; }
+.reward-dialog h3 { margin: 20px 0 10px; color: #68431d; font-size: 1.08rem; }
+.reward-rules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+.reward-rules div { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; padding: 11px; background: white; border: 2px solid #f3ddb0; border-radius: 14px; }
+.reward-rules span { font-size: 1.25rem; }
+.reward-rules strong { color: #704b2d; font-size: .9rem; }
+.reward-rules b { color: #ef7c15; }
+.reward-note { margin: 13px 2px 0; color: #806b57; font-size: .82rem; line-height: 1.6; }
 
 .learning-board {
   position: relative; padding: 22px; background: rgba(255,248,224,.9);
@@ -751,7 +949,8 @@ export default {
 .quiz-kicker { color: #dff5ff; font-size: .76rem; font-weight: 900; letter-spacing: 2px; }
 .secondary-action { min-width: 150px; color: #1467b8; background: white; border-radius: 15px; box-shadow: 0 4px 0 #b9dbf3; }
 .record-card { border: 2px solid #eed8b0 !important; border-radius: 22px !important; box-shadow: 0 6px 18px #96692317 !important; }
-.history-header, .future-header { color: #70431f; background: #fff7df; }
+.history-header, .future-header, .quiz-history-header { color: #70431f; background: #fff7df; }
+.quiz-day-summary { font-size: 0.78rem; font-weight: 600; }
 .garden { position: absolute; z-index: -1; right: -18px; bottom: 16px; left: -18px; display: flex; justify-content: space-around; align-items: end; height: 78px; color: #ff8c3d; background: linear-gradient(165deg, transparent 0 45%, #a9dc58 46% 65%, #45b888 66%); font-size: 1.7rem; }
 .garden span:nth-child(even) { color: #ffcf3b; font-size: 1rem; }
 
@@ -767,7 +966,9 @@ export default {
   .streak-card strong { font-size: 1.55rem; }
   .streak-fire { font-size: 1.5rem; }
   .star-score { min-width: 105px; min-height: 48px; padding: 5px 10px; }
-  .star-score span { font-size: 1.7rem; }.star-score strong { font-size: 1.25rem; }
+  .star-score .star-icon { font-size: 1.7rem; }.star-score strong { font-size: 1.25rem; }
+  .reward-dialog { padding: 20px 15px; border-radius: 23px; }
+  .reward-rules { grid-template-columns: 1fr; }
   .learning-board { padding: 13px; border-radius: 25px; }
   .board-toolbar { align-items: flex-start; }.person-switcher { padding: 3px 6px; }.person-switcher > span { display: none; }
   .person-chip { min-height: 34px; padding: 6px 10px; }.settings-button span { display: none; }

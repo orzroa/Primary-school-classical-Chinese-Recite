@@ -12,7 +12,7 @@
       <div class="card-body text-center" style="padding: 32px;">
         <div class="quiz-icon mb-3">卷</div>
         <h5 style="color: #2c3e50; font-family: 'ZCOOL XiaoWei', serif; margin-bottom: 16px;">
-          {{ learnedPoems.length ? `共 ${learnedPoems.length} 首已学诗词` : '还没有已学诗词' }}
+          {{ learnedPoems.length ? `已学 ${learnedPoems.length} 首 · 已掌握 ${masteredPoems.length} 首` : '还没有已学诗词' }}
         </h5>
         <p class="text-muted mb-4" style="font-size: 0.95rem;">
           {{ learnedPoems.length === 0 ? '先从年级目录选择一首开始学习吧' : '选择适合本次时间的练习量' }}
@@ -31,29 +31,31 @@
           <button
             class="quiz-mode"
             :class="{ active: selectedMode === 'random10' }"
+            :disabled="masteredPoems.length === 0"
             :aria-pressed="selectedMode === 'random10'"
             @click="selectedMode = 'random10'"
           >
             <strong>轻量练习</strong>
-            <span>随机 {{ Math.min(10, learnedPoems.length) }} 首</span>
+            <span>{{ masteredPoems.length ? `巩固 ${Math.min(10, masteredPoems.length)} 首` : '掌握后开启' }}</span>
           </button>
           <button
-            v-if="learnedPoems.length > 10"
+            v-if="masteredPoems.length > 10"
             class="quiz-mode"
             :class="{ active: selectedMode === 'random20' }"
             :aria-pressed="selectedMode === 'random20'"
             @click="selectedMode = 'random20'"
           >
             <strong>加强练习</strong>
-            <span>随机 {{ Math.min(20, learnedPoems.length) }} 首</span>
+            <span>巩固 {{ Math.min(20, masteredPoems.length) }} 首</span>
           </button>
         </div>
         <p v-if="learnedPoems.length > 0" class="quiz-note">
-          每次自评都会同步学习进度。“有点生”会保留当前阶段，按原步长再次复习。
+          巩固练习只测已掌握的诗词，优先抽测次数最少的，机会人人平等。“有点生”会安排 4 天后巩固复习；还没掌握的诗词请走“今日待复习”。每首诗每天首次测验得 1 颗星，每天最多 5 颗。
         </p>
         <button
           v-if="learnedPoems.length > 0"
           class="btn"
+          :disabled="selectedQuizCount === 0"
           style="background: #522c5e; color: #fff6e5; padding: 12px 36px; box-shadow: 0 4px 15px rgba(82, 44, 94, 0.2);"
           @click="startQuiz"
         >
@@ -155,6 +157,10 @@
         <h5 class="mb-0"><span class="me-2">🎉</span> 测验完成</h5>
       </div>
       <div class="card-body" style="padding: 28px;">
+        <div class="quiz-reward">
+          <span>⭐</span>
+          <div><strong>本次获得 {{ quizEarnedStars }} 颗星</strong><small>认真完成就是进步！</small></div>
+        </div>
         <div class="row g-3 mb-4">
           <div class="col-4 text-center">
             <div style="font-size: 2.2rem; color: #c9372e; font-weight: 800;">{{ stats.C }}</div>
@@ -167,6 +173,21 @@
           <div class="col-4 text-center">
             <div style="font-size: 2.2rem; color: #3f6a5a; font-weight: 800;">{{ stats.A }}</div>
             <div style="color: #3f6a5a; font-size: 0.85rem;">非常熟</div>
+          </div>
+        </div>
+
+        <!-- 本次测验明细 -->
+        <div v-if="sessionRecords.length > 0" class="session-records mb-4">
+          <div class="session-records-title">📝 本次测验记录</div>
+          <div class="list-group list-group-flush">
+            <div
+              v-for="(item, index) in sessionRecords"
+              :key="index"
+              class="list-group-item d-flex justify-content-between align-items-center session-record-row"
+            >
+              <span class="session-record-poem">{{ item.poem.title }}<small class="text-muted ms-2">{{ item.poem.author }}</small></span>
+              <span class="badge" :class="getRatingBadgeClass(item.rating)">{{ getRatingText(item.rating) }}</span>
+            </div>
           </div>
         </div>
 
@@ -206,9 +227,11 @@ export default {
       showAnswer: false,
       quizList: [],
       stats: { A: 0, B: 0, C: 0 },
+      sessionRecords: [],
       allPoems,
       refreshKey: 0,
-      selectedMode: 'random10'
+      selectedMode: 'random10',
+      rewardStart: 0
     }
   },
   computed: {
@@ -226,6 +249,19 @@ export default {
       })
       return result
     },
+    masteredPoems() {
+      void this.refreshKey
+      const result = []
+      Object.keys(allPoems).forEach(grade => {
+        allPoems[grade].forEach(poem => {
+          const record = storage.getPoemRecord(poem.id)
+          if (record && storage.isMastered(record)) {
+            result.push(poem)
+          }
+        })
+      })
+      return result
+    },
     currentQuestion() {
       return this.quizList[this.currentIndex] || {}
     },
@@ -234,11 +270,22 @@ export default {
     },
     selectedQuizCount() {
       if (this.selectedMode === 'due') return this.duePoems.length
-      if (this.selectedMode === 'random20') return Math.min(20, this.learnedPoems.length)
-      return Math.min(10, this.learnedPoems.length)
+      if (this.selectedMode === 'random20') return Math.min(20, this.masteredPoems.length)
+      return Math.min(10, this.masteredPoems.length)
+    },
+    quizEarnedStars() {
+      // stats 变化时重新读取由学习记录计算出的星星。
+      void this.stats.A
+      void this.stats.B
+      void this.stats.C
+      return Math.max(0, storage.getRewardStats().totalStars - this.rewardStart)
     }
   },
   mounted() {
+    // 默认的随机模式不可用时，自动切到可用模式
+    if (this.selectedMode !== 'due' && this.masteredPoems.length === 0 && this.duePoems.length > 0) {
+      this.selectedMode = 'due'
+    }
     eventBus.on(PERSON_CHANGED, this.handleRefresh)
     eventBus.on(RECORDS_CHANGED, this.handleRefresh)
   },
@@ -252,24 +299,37 @@ export default {
       // 如果测验未开始，重置计数
       if (!this.started) {
         this.finished = false
+        // 当前模式不可用时自动切到可用模式
+        if (this.selectedMode !== 'due' && this.masteredPoems.length === 0 && this.duePoems.length > 0) {
+          this.selectedMode = 'due'
+        }
+        if (this.selectedMode === 'due' && this.duePoems.length === 0 && this.masteredPoems.length > 0) {
+          this.selectedMode = 'random10'
+        }
       }
     },
     goBack() {
       this.$router.back()
     },
     startQuiz() {
-      let poems = this.selectedMode === 'due' ? this.duePoems : this.learnedPoems
+      let poems
+      if (this.selectedMode === 'due') {
+        poems = this.duePoems
+      } else {
+        // 均衡抽取：只测已掌握的诗，优先抽测验次数最少的，长期机会均等
+        const ids = storage.pickMasteredQuizPoems(this.selectedQuizCount)
+        const idSet = new Set(ids)
+        poems = this.masteredPoems.filter(poem => idSet.has(poem.id))
+      }
       if (poems.length === 0) return
+      this.rewardStart = storage.getRewardStats().totalStars
 
-      // Fisher-Yates 洗牌算法：彻底打乱顺序
+      // Fisher-Yates 洗牌算法：彻底打乱答题顺序
       const shuffled = [...poems]
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1))
         ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
       }
-
-      if (this.selectedMode === 'random10') shuffled.splice(10)
-      if (this.selectedMode === 'random20') shuffled.splice(20)
 
       // 按题目分组
       const titleGroups = {}
@@ -328,6 +388,7 @@ export default {
       this.currentIndex = 0
       this.showAnswer = false
       this.stats = { A: 0, B: 0, C: 0 }
+      this.sessionRecords = []
       this.started = true
       this.finished = false
     },
@@ -345,6 +406,10 @@ export default {
     },
     ratePoem(rating) {
       this.stats[rating]++
+      this.sessionRecords.push({
+        poem: this.currentQuestion.poem,
+        rating
+      })
 
       const storageRating = {
         A: 'mastered',
@@ -358,6 +423,22 @@ export default {
         this.showAnswer = false
       } else {
         this.finished = true
+      }
+    },
+    getRatingBadgeClass(rating) {
+      switch (rating) {
+        case 'A': return 'bg-success'
+        case 'B': return 'bg-primary'
+        case 'C': return 'bg-warning text-dark'
+        default: return 'bg-secondary'
+      }
+    },
+    getRatingText(rating) {
+      switch (rating) {
+        case 'A': return '非常熟 🌟'
+        case 'B': return '正常 👍'
+        case 'C': return '有点生 🤔'
+        default: return rating
       }
     },
     finishQuiz() {
@@ -385,6 +466,34 @@ export default {
   border-radius: 8px;
   font-size: 0.88rem;
   line-height: 1.6;
+}
+
+.quiz-reward {
+  display: flex;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #704a1f;
+  background: linear-gradient(135deg, #fff7c7, #ffe59b);
+  border: 2px solid #f5c752;
+  border-radius: 16px;
+}
+
+.quiz-reward > span {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 3px 0 #e8a300);
+}
+
+.quiz-reward div,
+.quiz-reward small {
+  display: block;
+}
+
+.quiz-reward small {
+  margin-top: 2px;
+  color: #92734e;
 }
 
 .answer-lines {
@@ -442,6 +551,34 @@ export default {
 
 .quiz-mode:disabled {
   opacity: 0.55;
+}
+
+.session-records {
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid #e5dfd3;
+  border-radius: 12px;
+  background: #fdfbf5;
+}
+
+.session-records-title {
+  padding: 10px 14px;
+  color: #704a1f;
+  background: #f8f2df;
+  border-bottom: 1px solid #e5dfd3;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.session-record-row {
+  padding: 9px 14px;
+  border-color: #f0ead9;
+}
+
+.session-record-poem {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .quiz-progress {

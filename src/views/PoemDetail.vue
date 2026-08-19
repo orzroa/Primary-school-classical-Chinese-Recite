@@ -132,6 +132,23 @@
               </span>
             </div>
           </div>
+
+          <!-- 测验记录 -->
+          <div v-if="quizRatings.length > 0" class="mt-3">
+            <div class="mb-2">
+              <span class="badge bg-info">测验记录</span>
+            </div>
+            <div
+              v-for="(item, index) in quizRatings.slice(0, 5)"
+              :key="index"
+              class="schedule-row"
+            >
+              <span>{{ formatDate(item.date) }}</span>
+              <span class="badge" :class="getQuizBadgeClass(item.rating)">
+                {{ getQuizText(item.rating) }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -154,6 +171,7 @@ export default {
       hideContent: false,
       reviewSchedule: [],
       futureSchedule: [],
+      quizRatings: [],
       feedback: '',
       lastRecordSnapshot: null,
       feedbackTimer: null
@@ -232,9 +250,11 @@ export default {
         this.futureSchedule = this.reviewSchedule.filter(
           item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
         )
+        this.quizRatings = this.record.quizRatings || []
       } else {
         // 未学过的诗默认显示原文
         this.hideContent = false
+        this.quizRatings = []
       }
     },
     goBack() {
@@ -242,39 +262,51 @@ export default {
     },
     markAsLearned() {
       // 初学：直接标记，不评级
+      const starsBefore = storage.getRewardStats().totalStars
       this.record = storage.addLearningRecord(this.id)
       this.reviewSchedule = this.record.reviewSchedule || []
       this.futureSchedule = this.reviewSchedule.filter(
         item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
       )
       this.hideContent = true
+      const earned = storage.getRewardStats().totalStars - starsBefore
+      this.feedback = `学习启程！获得 ${earned} 颗星 ⭐`
+      this.startFeedbackTimer()
     },
     markAndRate(rating) {
       // 复习 + 评级：atomic 一步完成
+      const starsBefore = storage.getRewardStats().totalStars
       this.lastRecordSnapshot = JSON.parse(JSON.stringify(this.record))
       this.record = storage.addLearningRecord(this.id, rating)
       this.reviewSchedule = this.record.reviewSchedule || []
       this.futureSchedule = this.reviewSchedule.filter(
         item => item.status === 'pending' && compareDates(item.plannedDate, getLocalDateStr()) > 0
       )
-      this.showRatingFeedback(rating)
+      const earned = storage.getRewardStats().totalStars - starsBefore
+      this.showRatingFeedback(rating, earned)
     },
-    showRatingFeedback(rating) {
+    showRatingFeedback(rating, earned) {
+      const starText = earned > 0 ? `获得 ${earned} 颗星！` : ''
       if (rating === 'mastered') {
-        this.feedback = '已标记为非常熟，本轮复习已结束。'
+        this.feedback = `${starText} 已标记为非常熟，本轮复习已结束。`
       } else if (rating === 'extend') {
         const next = this.nextReview
         const attempt = next?.attempts?.[next.attempts.length - 1]
-        this.feedback = next
+        const detail = next
           ? `当前阶段暂未完成，保持 ${attempt?.intervalDays || next.intervalDays} 天步长，${this.formatDate(next.plannedDate)}重试。`
           : '当前阶段暂未完成，稍后会按当前步长安排重试。'
+        this.feedback = `${starText} 诚实说“有点生”也值得鼓励。${detail}`
       } else {
         const next = this.nextReview
-        this.feedback = next
+        const detail = next
           ? `已记录，计划保持不变。下一次是${this.formatDate(next.plannedDate)}。`
           : '已记录，本轮计划已经完成。'
+        this.feedback = `${starText} ${detail}`
       }
 
+      this.startFeedbackTimer()
+    },
+    startFeedbackTimer() {
       if (this.feedbackTimer) clearTimeout(this.feedbackTimer)
       this.feedbackTimer = setTimeout(() => {
         this.feedback = ''
@@ -334,6 +366,22 @@ export default {
           }
         default:
           return ''
+      }
+    },
+    getQuizBadgeClass(rating) {
+      switch (rating) {
+        case 'mastered': return 'bg-success'
+        case 'normal': return 'bg-primary'
+        case 'extend': return 'bg-warning text-dark'
+        default: return 'bg-secondary'
+      }
+    },
+    getQuizText(rating) {
+      switch (rating) {
+        case 'mastered': return '非常熟 🌟'
+        case 'normal': return '正常 👍'
+        case 'extend': return '有点生 🤔'
+        default: return rating
       }
     }
   }

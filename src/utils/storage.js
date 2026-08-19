@@ -6,6 +6,21 @@ const REVIEW_GAPS = REVIEW_INTERVALS.map((days, index) =>
   index === 0 ? days : days - REVIEW_INTERVALS[index - 1]
 )
 
+// 已掌握的诗在测验中发现"有点生"后，安排 N 天后的巩固复习，通过即重新掌握。
+export const RECOVERY_INTERVAL_DAYS = 4
+
+// 奖励以学习记录为事实来源，旧数据也能自动得到星星，不需要单独迁移积分。
+export const REWARD_RULES = Object.freeze({
+  firstLearn: 2,
+  onTimeReview: 3,
+  makeupReview: 2,
+  retry: 1,
+  firstMastery: 3,
+  quizPerPoemPerDay: 1,
+  quizDailyCap: 5,
+  dailyGoal: 5
+})
+
 // 人员管理相关 keys
 const PERSONS_KEY = 'poem_persons'
 const CURRENT_PERSON_KEY = 'poem_current_person'
@@ -205,7 +220,7 @@ export const storage = {
     }
 
     if (record) {
-      // 兼容旧版“非常熟”：旧实现只截断后续节点，没有记录整首诗的完成状态。
+      // 兼容旧版"非常熟"：旧实现只截断后续节点，没有记录整首诗的完成状态。
       const masteredItem = record.reviewSchedule?.find(item =>
         item.status === 'mastered' || item.rating === 'mastered'
       )
@@ -215,8 +230,14 @@ export const storage = {
         changed = true
       }
 
-      // 兼容旧版“有点生”：旧实现错误地把当前阶段标记为完成，并生成了
-      // 新计划。若之后尚未完成其他节点，则还原为“当前阶段待重试”。
+      // "首次掌握"是永久里程碑。以后测验发现生疏，可以重新复习，但不收回奖励。
+      if (!record.firstMasteredAt && (record.masteredAt || masteredItem)) {
+        record.firstMasteredAt = record.masteredAt || masteredItem.actualDate || getLocalDateStr()
+        changed = true
+      }
+
+      // 兼容旧版"有点生"：旧实现错误地把当前阶段标记为完成，并生成了
+      // 新计划。若之后尚未完成其他节点，则还原为"当前阶段待重试"。
       const schedule = record.reviewSchedule || []
       for (let i = schedule.length - 1; i >= 0; i--) {
         const item = schedule[i]
@@ -354,6 +375,23 @@ export const storage = {
     const intervalDays = Math.max(1, daysBetween(previousDate, attemptDate))
     const retryDate = addDays(attemptDate, intervalDays)
 
+    // 已完成的阶段后来发现生疏时，保留当时确实完成过的事实，避免星星倒退。
+    if (currentItem.actualDate && ['on-time', 'makeup', 'mastered'].includes(currentItem.status)) {
+      if (!Array.isArray(record.reviewCompletions)) record.reviewCompletions = []
+      const completionKey = `${currentItem.days}:${currentItem.actualDate}`
+      const alreadySaved = record.reviewCompletions.some(item =>
+        `${item.days}:${item.actualDate}` === completionKey
+      )
+      if (!alreadySaved) {
+        record.reviewCompletions.push({
+          days: currentItem.days,
+          plannedDate: currentItem.plannedDate,
+          actualDate: currentItem.actualDate,
+          status: currentItem.status
+        })
+      }
+    }
+
     currentItem.status = 'pending'
     currentItem.actualDate = null
     currentItem.rating = null
@@ -379,7 +417,11 @@ export const storage = {
     currentItem.actualDate = completedDate
     currentItem.rating = rating
 
-    if (rating === 'mastered') {
+    // 巩固复习节点通过（正常/非常熟）即重新掌握整首诗；
+    // 走完全部间隔计划（完成最后一个 30 天节点）同样毕业掌握，无需点“非常熟”。
+    const isLastStage = currentItem.days === REVIEW_INTERVALS[REVIEW_INTERVALS.length - 1]
+    if (rating === 'mastered' || currentItem.isRecovery || isLastStage) {
+      if (!record.firstMasteredAt) record.firstMasteredAt = completedDate
       record.masteredAt = completedDate
       record.reviewSchedule = record.reviewSchedule.slice(0, currentIdx + 1)
       return
@@ -390,6 +432,45 @@ export const storage = {
       ...record.reviewSchedule.slice(0, currentIdx + 1),
       ...this.buildPendingTail(currentItem.days, completedDate)
     ]
+  },
+
+  // 已掌握的诗在测验中发现"有点生"：保留历史完成事实，降级为待巩固状态，
+  // 安排 RECOVERY_INTERVAL_DAYS 天后的巩固复习，通过即重新掌握。
+  scheduleRecovery(record, today) {
+    const schedule = record.reviewSchedule || []
+
+    if (!Array.isArray(record.reviewCompletions)) record.reviewCompletions = []
+    schedule.forEach(item => {
+      if (!item.actualDate || !['on-time', 'makeup', 'mastered'].includes(item.status)) return
+      const completionKey = `${item.days}:${item.actualDate}`
+      const alreadySaved = record.reviewCompletions.some(c =>
+        `${c.days}:${c.actualDate}` === completionKey
+      )
+      if (!alreadySaved) {
+        record.reviewCompletions.push({
+          days: item.days,
+          plannedDate: item.plannedDate,
+          actualDate: item.actualDate,
+          status: item.status
+        })
+      }
+    })
+
+    const lastDays = schedule.length
+      ? schedule[schedule.length - 1].days
+      : REVIEW_INTERVALS[REVIEW_INTERVALS.length - 1]
+
+    delete record.masteredAt
+    record.reviewSchedule = [{
+      days: lastDays,
+      intervalDays: RECOVERY_INTERVAL_DAYS,
+      plannedDate: addDays(today, RECOVERY_INTERVAL_DAYS),
+      status: 'pending',
+      actualDate: null,
+      rating: null,
+      isRecovery: true,
+      attempts: [{ date: today, rating: 'extend', intervalDays: RECOVERY_INTERVAL_DAYS }]
+    }]
   },
 
   // 判断今天是否需要复习（有 pending 且 plannedDate <= 今天）
@@ -410,14 +491,18 @@ export const storage = {
     )
   },
 
-  // 判断一首诗是否已掌握（所有 5 个节点都已 mastered）
+  // 判断一首诗是否已掌握：任一节点评过“非常熟”、或走完全部间隔计划（30 天节点完成）。
+  // 兼容历史上全部评“正常”走完 30 天的诗，它们同样算毕业掌握。
   isMastered(record) {
     if (!record) return false
     if (record.masteredAt) return true
     const schedule = record.reviewSchedule || []
-    return !schedule.some(item => item.status === 'pending') && schedule.some(item =>
-      item.status === 'mastered' || item.rating === 'mastered'
-    )
+    if (schedule.some(item => item.status === 'pending')) return false
+    if (schedule.some(item => item.status === 'mastered' || item.rating === 'mastered')) return true
+    const lastItem = schedule[schedule.length - 1]
+    return !!lastItem
+      && lastItem.days === REVIEW_INTERVALS[REVIEW_INTERVALS.length - 1]
+      && !!lastItem.actualDate
   },
 
   getNextPendingReview(poemId) {
@@ -541,36 +626,159 @@ export const storage = {
   },
 
   // 测验中的自评会同步到复习计划，但不冒充一次计划内复习。
+  // 非常熟=确认掌握；正常=维持现状；有点生=已掌握诗安排巩固复习，未掌握诗保留当前阶段按实际间隔重试。
   rateFromQuiz(poemId, rating) {
     const records = this.getRecords()
     const record = records[poemId]
     if (!record) return null
 
     const today = getLocalDateStr()
-    const previousPracticeDate = this.getPreviousPracticeDate(record, today)
+    if (!record.firstMasteredAt && this.isMastered(record)) {
+      record.firstMasteredAt = record.masteredAt || today
+    }
     if (!Array.isArray(record.quizRatings)) record.quizRatings = []
     record.quizRatings.unshift({ date: today, rating })
 
+    const wasMastered = this.isMastered(record)
+
     if (rating === 'mastered') {
+      if (!record.firstMasteredAt) record.firstMasteredAt = today
       record.masteredAt = today
       record.reviewSchedule = (record.reviewSchedule || []).filter(
         item => item.status !== 'pending'
       )
     } else if (rating === 'extend') {
-      let currentIdx = (record.reviewSchedule || []).findIndex(item => item.status === 'pending')
-
-      // 已掌握后在测验中发现“有点生”：重新打开最后一个阶段。
-      if (currentIdx < 0 && record.reviewSchedule?.length) {
-        currentIdx = record.reviewSchedule.length - 1
-      }
-
-      if (currentIdx >= 0) {
-        this.keepCurrentStageForRetry(record, currentIdx, today, previousPracticeDate)
+      if (wasMastered) {
+        // 已掌握后发现生疏：降级并安排巩固复习，通过后重新掌握。
+        this.scheduleRecovery(record, today)
+      } else {
+        // 未掌握：保留当前阶段不完成，按本次实际间隔 M 天后重试。
+        const currentIdx = (record.reviewSchedule || []).findIndex(item => item.status === 'pending')
+        if (currentIdx >= 0) {
+          const previousPracticeDate = this.getPreviousPracticeDate(record, today)
+          this.keepCurrentStageForRetry(record, currentIdx, today, previousPracticeDate)
+        }
       }
     }
 
     this.saveRecords(records)
     return record
+  },
+
+  // 星星只奖励可验证的学习行为；测验按"同一首诗同一天一次"去重并设置每日上限。
+  getRewardStats() {
+    const today = getLocalDateStr()
+    const records = this.getAllRecordsSorted()
+    const activityDates = new Set()
+    const quizPoemsByDate = new Map()
+    const starsByDate = new Map()
+    const breakdown = {
+      firstLearn: 0,
+      reviews: 0,
+      retries: 0,
+      mastery: 0,
+      quizzes: 0
+    }
+
+    const addStars = (date, amount) => {
+      if (!date || !amount) return
+      starsByDate.set(date, (starsByDate.get(date) || 0) + amount)
+    }
+
+    records.forEach(record => {
+      if (record.firstLearnDate) {
+        activityDates.add(record.firstLearnDate)
+        breakdown.firstLearn += REWARD_RULES.firstLearn
+        addStars(record.firstLearnDate, REWARD_RULES.firstLearn)
+      }
+
+      ;(record.reviewSchedule || []).forEach(item => {
+        if (item.actualDate && ['on-time', 'makeup', 'mastered'].includes(item.status)) {
+          const onTime = item.actualDate === item.plannedDate
+          const points = onTime ? REWARD_RULES.onTimeReview : REWARD_RULES.makeupReview
+          activityDates.add(item.actualDate)
+          breakdown.reviews += points
+          addStars(item.actualDate, points)
+        }
+
+        ;(item.attempts || []).forEach(attempt => {
+          if (!attempt.date) return
+          activityDates.add(attempt.date)
+          breakdown.retries += REWARD_RULES.retry
+          addStars(attempt.date, REWARD_RULES.retry)
+        })
+      })
+
+      ;(record.reviewCompletions || []).forEach(item => {
+        if (!item.actualDate) return
+        const onTime = item.actualDate === item.plannedDate
+        const points = onTime ? REWARD_RULES.onTimeReview : REWARD_RULES.makeupReview
+        activityDates.add(item.actualDate)
+        breakdown.reviews += points
+        addStars(item.actualDate, points)
+      })
+
+      ;(record.quizRatings || []).forEach(rating => {
+        if (!rating.date) return
+        activityDates.add(rating.date)
+        if (!quizPoemsByDate.has(rating.date)) quizPoemsByDate.set(rating.date, new Set())
+        quizPoemsByDate.get(rating.date).add(record.poemId)
+      })
+
+      const masteredDate = record.firstMasteredAt
+        || record.masteredAt
+        || (record.reviewSchedule || []).find(item =>
+          item.status === 'mastered' || item.rating === 'mastered'
+        )?.actualDate
+        || (record.quizRatings || []).find(item => item.rating === 'mastered')?.date
+        // 历史上走完全部计划（30 天节点完成）的诗，以最后节点完成日为首次掌握日
+        || (this.isMastered(record)
+          ? (record.reviewSchedule || [])[(record.reviewSchedule || []).length - 1]?.actualDate
+          : undefined)
+
+      if (masteredDate) {
+        breakdown.mastery += REWARD_RULES.firstMastery
+        addStars(masteredDate, REWARD_RULES.firstMastery)
+      }
+    })
+
+    quizPoemsByDate.forEach((poemIds, date) => {
+      const points = Math.min(poemIds.size, REWARD_RULES.quizDailyCap)
+        * REWARD_RULES.quizPerPoemPerDay
+      breakdown.quizzes += points
+      addStars(date, points)
+    })
+
+    const totalStars = Object.values(breakdown).reduce((sum, value) => sum + value, 0)
+    const todayStars = starsByDate.get(today) || 0
+    let streakDays = 0
+    let cursor = activityDates.has(today) ? today : addDays(today, -1)
+    while (activityDates.has(cursor)) {
+      streakDays++
+      cursor = addDays(cursor, -1)
+    }
+
+    const title = totalStars >= 100
+      ? '诗词小博士'
+      : totalStars >= 60
+        ? '诗词达人'
+        : totalStars >= 30
+          ? '背诗能手'
+          : totalStars >= 10
+            ? '诵读新星'
+            : '小小诗芽'
+    const nextMilestone = (Math.floor(totalStars / 10) + 1) * 10
+
+    return {
+      totalStars,
+      todayStars,
+      dailyGoal: REWARD_RULES.dailyGoal,
+      streakDays,
+      title,
+      nextMilestone,
+      milestoneProgress: totalStars % 10,
+      breakdown
+    }
   },
 
   getAllRecordsSorted() {
@@ -673,5 +881,51 @@ export const storage = {
     })
 
     return pending
+  },
+
+  // 从已掌握的诗词中均衡抽取 count 首：优先抽被抽中次数最少的，同次数的随机。
+  // 抽中即持久化计数（quizPicks），与是否完成作答无关，长期机会严格均等。
+  pickMasteredQuizPoems(count) {
+    const records = this.getRecords()
+    const pool = Object.keys(records)
+      .filter(poemId => this.isMastered(records[poemId]))
+      .map(poemId => ({
+        poemId,
+        pickCount: records[poemId].quizPicks || 0
+      }))
+
+    // 先洗牌再按次数稳定排序：同次数的保持随机顺序，次数少的优先被抽中。
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[pool[i], pool[j]] = [pool[j], pool[i]]
+    }
+    pool.sort((a, b) => a.pickCount - b.pickCount)
+
+    const picked = pool.slice(0, count)
+    picked.forEach(item => {
+      const record = records[item.poemId]
+      record.quizPicks = (record.quizPicks || 0) + 1
+    })
+    if (picked.length > 0) this.saveRecords(records)
+
+    return picked.map(item => item.poemId)
+  },
+
+  // 获取所有测验记录（按日期倒序），用于首页展示
+  getAllQuizHistory() {
+    const history = []
+
+    this.getAllRecordsSorted().forEach(record => {
+      ;(record.quizRatings || []).forEach(item => {
+        if (!item.date) return
+        history.push({
+          poemId: record.poemId,
+          date: item.date,
+          rating: item.rating
+        })
+      })
+    })
+
+    return history.sort((a, b) => compareDates(b.date, a.date))
   }
 }
